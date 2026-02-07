@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Workout Calendar</title>
+    <meta name="theme-color" content="#0f172a" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="styles.css?v=20260206" />
+  </head>
+  <body>
+    <main class="app" id="app-root">
+      <div class="app__content">
+        <section class="page page--active" data-page="home">
+          <div class="page__inner">
+            <section class="calendar panel">
+              <header class="calendar__header">
+                <div class="calendar__nav">
+                  <button class="calendar__btn" data-action="prev" aria-label="Previous month">&#8249;</button>
+                  <div class="calendar__title">
+                    <h1 id="calendar-month"></h1>
+                    <p id="calendar-year"></p>
+                  </div>
+                  <button class="calendar__btn" data-action="next" aria-label="Next month">&#8250;</button>
+                </div>
+                <div class="calendar__meta">
+                  <button class="calendar__btn calendar__btn--today" type="button" id="go-today">Today</button>
+                </div>
+              </header>
+              <div class="calendar__grid">
+                <div class="calendar__weekdays" aria-hidden="true">
+                  <span>Sun</span>
+                  <span>Mon</span>
+                  <span>Tue</span>
+                  <span>Wed</span>
+                  <span>Thu</span>
+                  <span>Fri</span>
+                  <span>Sat</span>
+                </div>
+                <div id="calendar-days" class="calendar__days" role="grid" aria-labelledby="calendar-month"></div>
+              </div>
+              <div class="calendar__summary">
+                <div>
+                  <p class="calendar__summary-label">Selected date</p>
+                  <h2 id="selected-date" class="calendar__summary-date"></h2>
+                  <p id="selected-weekday" class="calendar__summary-weekday"></p>
+                </div>
+                <button class="calendar__btn" type="button" id="open-schedule">Open Schedule</button>
+              </div>
+            </section>
+          </div>
+        </section>
+        <section class="page" data-page="tasks">
+          <div class="page__inner">
+            <section class="task-panel panel" aria-live="polite">
+              <header class="task-panel__header">
+                <p class="task-panel__title">Training List</p>
+                <p class="task-panel__subtitle">Add exercises you want to track.</p>
+              </header>
+              <form class="task-panel__form" id="task-form">
+                <input
+                  id="task-input"
+                  type="text"
+                  class="task-panel__input"
+                  placeholder="e.g. Squat, Bench Press"
+                  autocomplete="off"
+                  required
+                />
+                <button type="submit" class="task-panel__submit">Add</button>
+              </form>
+              <div class="task-panel__list" id="task-list" role="list"></div>
+            </section>
+          </div>
+        </section>
+        <section class="page" data-page="schedule">
+          <div class="page__inner">
+            <section class="schedule panel" aria-live="polite">
+              <header class="schedule__header">
+                <div>
+                  <p class="schedule__label">Workout Schedule</p>
+                  <h2 id="schedule-date"></h2>
+                  <p id="schedule-weekday" class="schedule__weekday"></p>
+                </div>
+                <input id="schedule-date-input" type="date" class="schedule__date-input" />
+              </header>
+              <form class="schedule__form" id="schedule-form">
+                <div class="schedule__form-row">
+                  <label class="schedule__form-label" for="exercise-select">Exercise</label>
+                  <select id="exercise-select" class="schedule__select"></select>
+                </div>
+                <div class="schedule__form-row schedule__form-row--grid">
+                  <label class="schedule__form-label" for="weight-input">Weight</label>
+                  <div class="schedule__weight">
+                    <input id="weight-input" type="number" min="0" step="0.5" class="schedule__input" placeholder="0" />
+                    <select id="weight-unit" class="schedule__select schedule__select--unit">
+                      <option value="kg">kg</option>
+                      <option value="lb">lb</option>
+                    </select>
+                    <span id="weight-convert" class="schedule__convert"></span>
+                  </div>
+                </div>
+                <div class="schedule__form-row schedule__form-row--grid">
+                  <label class="schedule__form-label" for="reps-input">Reps</label>
+                  <input id="reps-input" type="number" min="1" step="1" class="schedule__input" placeholder="8" />
+                </div>
+                <div class="schedule__form-row schedule__form-row--grid">
+                  <label class="schedule__form-label" for="sets-input">Sets</label>
+                  <input id="sets-input" type="number" min="1" step="1" class="schedule__input" placeholder="3" />
+                </div>
+                <div class="schedule__form-actions">
+                  <button type="submit" class="schedule__submit">Add Entry</button>
+                  <span id="schedule-hint" class="schedule__hint"></span>
+                </div>
+              </form>
+              <div class="schedule__list" id="schedule-list"></div>
+            </section>
+          </div>
+        </section>
+      </div>
+      <nav class="bottom-nav" aria-label="Primary">
+        <button class="bottom-nav__item is-active" type="button" data-page="home">Home</button>
+        <button class="bottom-nav__item" type="button" data-page="tasks">Tasks</button>
+        <button class="bottom-nav__item" type="button" data-page="schedule">Schedule</button>
+      </nav>
+    </main>
+    <script src="main.js?v=20260206" type="module"></script>
+  </body>
+</html>

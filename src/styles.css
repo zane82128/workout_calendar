@@ -1,0 +1,527 @@
+:root {
+  color-scheme: light dark;
+  font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --text: #1a1a1a;
+  --text-muted: #6b7280;
+  --primary: #2563eb;
+  --primary-soft: #dbeafe;
+  --accent: #16a34a;
+  --accent-soft: rgba(22, 163, 74, 0.15);
+  --danger: #ef4444;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.app__content {
+  flex: 1;
+  display: flex;
+}
+
+.page {
+  display: none;
+  width: 100%;
+}
+
+.page--active {
+  display: block;
+}
+
+.page__inner {
+  min-height: 100%;
+  padding: var(--safe-top) 0 calc(5.5rem + var(--safe-bottom));
+}
+
+.panel {
+  width: 100%;
+  min-height: calc(100vh - 7.5rem);
+  background: var(--surface);
+  border-radius: 0;
+  padding: 1.5rem 1.25rem;
+  box-shadow: none;
+}
+
+.calendar__header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.calendar__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.calendar__meta {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.calendar__title {
+  text-align: center;
+}
+
+.calendar__title h1 {
+  font-size: clamp(1.3rem, 4vw, 1.7rem);
+  margin: 0;
+}
+
+.calendar__title p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.calendar__btn {
+  border: none;
+  background: var(--primary-soft);
+  color: var(--primary);
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: clamp(0.9rem, 2.6vw, 1rem);
+  min-height: 2.75rem;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.calendar__btn:hover {
+  background: rgba(37, 99, 235, 0.2);
+}
+
+.calendar__btn:active {
+  transform: scale(0.95);
+}
+
+.calendar__btn--today {
+  padding-inline: 1rem;
+}
+
+.calendar__grid {
+  margin-top: 1rem;
+}
+
+.calendar__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+
+.calendar__weekdays span {
+  font-size: 0.85rem;
+  text-align: center;
+  color: var(--text-muted);
+  padding: 0.35rem 0;
+  font-weight: 600;
+}
+
+.calendar__days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+}
+
+.calendar__day {
+  border: none;
+  background: rgba(15, 23, 42, 0.04);
+  color: var(--text);
+  padding: 0.75rem 0.25rem;
+  border-radius: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 3.5rem;
+  position: relative;
+  transition: transform 0.2s ease, background 0.2s ease, border 0.2s ease;
+}
+
+.calendar__day:hover {
+  transform: translateY(-2px);
+}
+
+.calendar__day--outside {
+  color: rgba(107, 114, 128, 0.6);
+}
+
+.calendar__day--selected {
+  border: 2px solid var(--primary);
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.calendar__day--today {
+  border: 2px solid rgba(37, 99, 235, 0.3);
+}
+
+.calendar__day--workout {
+  background: var(--accent-soft);
+  border: 2px solid rgba(22, 163, 74, 0.4);
+}
+
+.calendar__day-count {
+  font-size: 0.7rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.calendar__summary {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.calendar__summary-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.calendar__summary-date {
+  margin: 0.2rem 0 0;
+  font-size: 1.3rem;
+}
+
+.calendar__summary-weekday {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.task-panel__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.task-panel__title {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.task-panel__subtitle {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.task-panel__form {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.task-panel__input {
+  flex: 1;
+  min-width: 180px;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  font-size: 1rem;
+}
+
+.task-panel__submit {
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 0.75rem;
+  padding: 0.7rem 1.2rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.task-panel__list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  border-radius: 0.9rem;
+  background: rgba(15, 23, 42, 0.04);
+  gap: 0.75rem;
+}
+
+.task-item__name {
+  font-weight: 600;
+}
+
+.task-item__meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.task-item__delete {
+  border: none;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+
+.schedule__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.schedule__label {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.schedule__weekday {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.schedule__date-input {
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  font-size: 1rem;
+}
+
+.schedule__form {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.schedule__form-row {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.schedule__form-row--grid {
+  grid-template-columns: 1fr;
+}
+
+.schedule__form-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.schedule__input,
+.schedule__select {
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  font-size: 1rem;
+  background: var(--surface);
+}
+
+.schedule__weight {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.schedule__select--unit {
+  min-width: 70px;
+}
+
+.schedule__convert {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.schedule__form-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.schedule__submit {
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 0.75rem;
+  padding: 0.7rem 1.4rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.schedule__hint {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.schedule__list {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.workout-card {
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.04);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.workout-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.workout-card__title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.workout-card__delete {
+  border: none;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+
+.workout-card__grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.workout-card__weight {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.workout-card__field label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.workout-card__field input,
+.workout-card__field select {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  font-size: 0.95rem;
+}
+
+.workout-card__convert {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 1.5rem;
+}
+
+.bottom-nav {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  padding: 0.75rem 1rem calc(0.75rem + var(--safe-bottom));
+}
+
+.bottom-nav__item {
+  border: none;
+  background: transparent;
+  padding: 0.6rem 0.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.bottom-nav__item.is-active {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+@media (min-width: 768px) {
+  .panel {
+    max-width: 980px;
+    margin: 0 auto;
+    border-radius: 1.5rem;
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.15);
+  }
+
+  .page__inner {
+    padding: 2.5rem 1.5rem 7rem;
+  }
+
+  .bottom-nav {
+    max-width: 520px;
+    margin: 0 auto 1.5rem;
+    border-radius: 999px;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
+  }
+
+  .schedule__form-row--grid {
+    grid-template-columns: 120px 1fr;
+    align-items: center;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a;
+    --surface: #111c34;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --primary-soft: rgba(37, 99, 235, 0.2);
+    --accent-soft: rgba(22, 163, 74, 0.2);
+  }
+
+  .calendar__day {
+    background: rgba(148, 163, 184, 0.12);
+  }
+
+  .calendar__summary,
+  .task-item,
+  .workout-card {
+    background: rgba(148, 163, 184, 0.12);
+  }
+}
