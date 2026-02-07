@@ -1,0 +1,13 @@
+我現在想寫一個健身紀錄用的日曆
+你先幫我參考 /home/zane82128/personal/calendar 裡面的架構，並滿足我以下的要求
+
+1. 把task list當作健身訓練的清單，讓使用者可以在裡面新增他們要做的動作
+2. 新增一個介面是類似原本calendar的schedule，但裡面不需要時間，只需要放內容是訓練動作的event block
+3. 這個訓練動作的event block需要有重量、次數、組數的內容讓使用者自己可以填入，重量要提供lb跟kg的選項，同時如果user使用的是lb，讓他要同步換算成kg
+4. 這個專案的所有紀錄要存在使用者的本地端，不需要再用雲端的database了
+5. 如果那天有健身的紀錄，在home page要把那天的日期標示成綠色
+6. 我會把這個專案放在github pages來查看，但你不必做push至github這件事，我只是提供你一些資訊
+
+你可以根據一個程式架構師的角度來任意修改細節的部份，以保持之後程式的維護性與程式碼的可讀性
+完成後幫我把你做的內容與這個程式的介紹用類似/home/zane82128/personal/calendar/README.md的方式寫進/home/zane82128/personal/workout_calendar/develop_log.md
+你也可以在完成後向我詢問問題，可以詢問我指令沒下清楚的部分，或是你覺得這個專案哪裡可以改得比較好，我會在下次更新一併考慮進去，把問題一樣寫在readme裡面

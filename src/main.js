@@ -1,3 +1,10 @@
+import {
+  DEFAULT_EXERCISE_CATEGORY,
+  EXERCISE_CATEGORIES,
+  PRESET_EXERCISES,
+  PRESET_VERSION,
+} from './preset-exercises.js';
+
 const STORAGE_KEY = 'workoutCalendar.v1';
 const LB_TO_KG = 0.45359237;
 
@@ -9,6 +16,9 @@ const fullDateFormatter = new Intl.DateTimeFormat('en', {
   year: 'numeric',
 });
 const weekdayFormatter = new Intl.DateTimeFormat('en', { weekday: 'long' });
+const PRESET_CATEGORY_MAP = new Map(
+  PRESET_EXERCISES.map((preset) => [String(preset.name || '').trim().toLowerCase(), preset.category]),
+);
 
 const DOM = {
   month: document.getElementById('calendar-month'),
@@ -22,11 +32,14 @@ const DOM = {
   navItems: document.querySelectorAll('.bottom-nav__item'),
   taskForm: document.getElementById('task-form'),
   taskInput: document.getElementById('task-input'),
+  taskCategory: document.getElementById('task-category'),
   taskList: document.getElementById('task-list'),
   scheduleDate: document.getElementById('schedule-date'),
   scheduleWeekday: document.getElementById('schedule-weekday'),
   scheduleDateInput: document.getElementById('schedule-date-input'),
   scheduleForm: document.getElementById('schedule-form'),
+  exerciseCategoryFilter: document.getElementById('exercise-category-filter'),
+  exerciseSearch: document.getElementById('exercise-search'),
   exerciseSelect: document.getElementById('exercise-select'),
   weightInput: document.getElementById('weight-input'),
   weightUnit: document.getElementById('weight-unit'),
@@ -43,6 +56,7 @@ const state = {
   selectedDate: new Date(),
   exercises: [],
   entries: [],
+  presetVersionApplied: null,
   activePage: 'home',
 };
 
@@ -52,7 +66,14 @@ function loadState() {
   try {
     const parsed = JSON.parse(raw);
     state.exercises = Array.isArray(parsed.exercises) ? parsed.exercises : [];
+    state.exercises = state.exercises.map((exercise) => ({
+      ...exercise,
+      category: normalizeCategory(exercise.category || inferCategoryByName(exercise.name)),
+    }));
     state.entries = Array.isArray(parsed.entries) ? parsed.entries : [];
+    state.presetVersionApplied = typeof parsed.presetVersionApplied === 'string'
+      ? parsed.presetVersionApplied
+      : null;
     if (parsed.selectedDate) {
       const storedDate = new Date(parsed.selectedDate);
       if (!Number.isNaN(storedDate.getTime())) {
@@ -71,9 +92,70 @@ function persistState() {
     JSON.stringify({
       exercises: state.exercises,
       entries: state.entries,
+      presetVersionApplied: state.presetVersionApplied,
       selectedDate: state.selectedDate.toISOString(),
     }),
   );
+}
+
+function seedPresetExercises() {
+  if (state.presetVersionApplied === PRESET_VERSION) return;
+  const existingNames = new Set(
+    state.exercises.map((exercise) => exercise.name.trim().toLowerCase()),
+  );
+
+  PRESET_EXERCISES.forEach((preset) => {
+    const trimmed = String(preset?.name || '').trim();
+    if (!trimmed) return;
+    const key = trimmed.toLowerCase();
+    if (existingNames.has(key)) return;
+    existingNames.add(key);
+    state.exercises.push({
+      id: crypto.randomUUID(),
+      name: trimmed,
+      category: normalizeCategory(preset?.category),
+      createdAt: new Date().toISOString(),
+    });
+  });
+
+  state.presetVersionApplied = PRESET_VERSION;
+  persistState();
+}
+
+function normalizeCategory(category) {
+  if (EXERCISE_CATEGORIES.includes(category)) return category;
+  return DEFAULT_EXERCISE_CATEGORY;
+}
+
+function inferCategoryByName(name) {
+  const key = String(name || '').trim().toLowerCase();
+  return PRESET_CATEGORY_MAP.get(key) || DEFAULT_EXERCISE_CATEGORY;
+}
+
+function renderCategorySelect(selectElement, { includeAll = false } = {}) {
+  if (!selectElement) return;
+  const previousValue = selectElement.value;
+  selectElement.innerHTML = '';
+  if (includeAll) {
+    const allOption = document.createElement('option');
+    allOption.value = 'all';
+    allOption.textContent = '全部分類';
+    selectElement.appendChild(allOption);
+  }
+  EXERCISE_CATEGORIES.forEach((category) => {
+    const option = document.createElement('option');
+    option.value = category;
+    option.textContent = category;
+    selectElement.appendChild(option);
+  });
+  const availableValues = Array.from(selectElement.options).map((option) => option.value);
+  if (availableValues.includes(previousValue)) {
+    selectElement.value = previousValue;
+  } else if (includeAll) {
+    selectElement.value = 'all';
+  } else {
+    selectElement.value = DEFAULT_EXERCISE_CATEGORY;
+  }
 }
 
 function dateKey(date) {
@@ -219,18 +301,70 @@ function renderTaskList() {
       const row = document.createElement('div');
       row.className = 'task-item';
       row.innerHTML = `
-        <div>
+        <div class="task-item__content">
           <div class="task-item__name">${exercise.name}</div>
-          <div class="task-item__meta">Added ${new Date(exercise.createdAt).toLocaleDateString()}</div>
+          <div class="task-item__meta">${exercise.category} · Added ${new Date(exercise.createdAt).toLocaleDateString()}</div>
         </div>
-        <button class="task-item__delete" type="button" data-id="${exercise.id}">Delete</button>
+        <div class="task-item__actions">
+          <button class="task-item__edit" type="button" data-id="${exercise.id}">Edit</button>
+          <button class="task-item__delete" type="button" data-id="${exercise.id}">Delete</button>
+        </div>
       `;
+
       row.querySelector('.task-item__delete').addEventListener('click', () => {
         state.exercises = state.exercises.filter((item) => item.id !== exercise.id);
         persistState();
         renderTaskList();
         renderScheduleFormOptions();
       });
+
+      row.querySelector('.task-item__edit').addEventListener('click', () => {
+        const content = row.querySelector('.task-item__content');
+        content.innerHTML = `
+          <div class="task-item__edit-row">
+            <input class="task-item__edit-input" type="text" value="${exercise.name}" />
+            <select class="task-item__edit-select">
+              ${EXERCISE_CATEGORIES.map((category) => `
+                <option value="${category}" ${category === exercise.category ? 'selected' : ''}>${category}</option>
+              `).join('')}
+            </select>
+            <button class="task-item__save" type="button">Save</button>
+            <button class="task-item__cancel" type="button">Cancel</button>
+          </div>
+        `;
+        const input = content.querySelector('.task-item__edit-input');
+        const categorySelect = content.querySelector('.task-item__edit-select');
+        const saveBtn = content.querySelector('.task-item__save');
+        const cancelBtn = content.querySelector('.task-item__cancel');
+
+        const restore = () => {
+          content.innerHTML = `
+            <div class="task-item__name">${exercise.name}</div>
+            <div class="task-item__meta">${exercise.category} · Added ${new Date(exercise.createdAt).toLocaleDateString()}</div>
+          `;
+        };
+
+        saveBtn.addEventListener('click', () => {
+          const nextName = input.value.trim();
+          if (!applyExerciseRename(exercise.id, nextName)) {
+            input.focus();
+            return;
+          }
+          exercise.category = normalizeCategory(categorySelect.value);
+          syncEntryExerciseSnapshot(exercise.id);
+          persistState();
+          renderTaskList();
+          renderScheduleFormOptions();
+          renderScheduleList();
+        });
+
+        cancelBtn.addEventListener('click', () => {
+          restore();
+        });
+
+        input.focus();
+      });
+
       DOM.taskList.appendChild(row);
     });
 }
@@ -242,6 +376,9 @@ function renderScheduleHeader() {
 }
 
 function renderScheduleFormOptions() {
+  const selectedCategory = DOM.exerciseCategoryFilter?.value || 'all';
+  const searchTerm = (DOM.exerciseSearch?.value || '').trim().toLowerCase();
+  const previousValue = DOM.exerciseSelect.value;
   DOM.exerciseSelect.innerHTML = '';
   if (state.exercises.length === 0) {
     const option = document.createElement('option');
@@ -249,21 +386,57 @@ function renderScheduleFormOptions() {
     option.textContent = 'Add exercises in Tasks first';
     DOM.exerciseSelect.appendChild(option);
     DOM.exerciseSelect.disabled = true;
+    if (DOM.exerciseSearch) {
+      DOM.exerciseSearch.disabled = true;
+      DOM.exerciseSearch.value = '';
+    }
+    if (DOM.exerciseCategoryFilter) {
+      DOM.exerciseCategoryFilter.disabled = true;
+      DOM.exerciseCategoryFilter.value = 'all';
+    }
     DOM.scheduleHint.textContent = 'Create exercises in Tasks to enable entry.';
+    return;
+  }
+
+  if (DOM.exerciseSearch) {
+    DOM.exerciseSearch.disabled = false;
+  }
+  if (DOM.exerciseCategoryFilter) {
+    DOM.exerciseCategoryFilter.disabled = false;
+  }
+
+  const filteredExercises = state.exercises
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .filter((exercise) => selectedCategory === 'all' || exercise.category === selectedCategory)
+    .filter((exercise) => exercise.name.toLowerCase().includes(searchTerm));
+
+  if (filteredExercises.length === 0) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'No matching exercise';
+    DOM.exerciseSelect.appendChild(option);
+    DOM.exerciseSelect.disabled = true;
+    DOM.scheduleHint.textContent = 'No exercise matches current search.';
     return;
   }
 
   DOM.exerciseSelect.disabled = false;
   DOM.scheduleHint.textContent = '';
-  state.exercises
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name))
+  filteredExercises
     .forEach((exercise) => {
       const option = document.createElement('option');
       option.value = exercise.id;
-      option.textContent = exercise.name;
+      option.textContent = `${exercise.name} (${exercise.category})`;
       DOM.exerciseSelect.appendChild(option);
     });
+
+  const hasPrevious = filteredExercises.some((exercise) => exercise.id === previousValue);
+  if (hasPrevious) {
+    DOM.exerciseSelect.value = previousValue;
+  } else {
+    DOM.exerciseSelect.value = filteredExercises[0].id;
+  }
 }
 
 function renderScheduleList() {
@@ -284,6 +457,7 @@ function renderScheduleList() {
     card.className = 'workout-card';
     card.dataset.id = entry.id;
     const displayName = entry.exerciseName || 'Workout';
+    const displayCategory = entry.exerciseCategory || getExerciseCategory(entry.exerciseId);
     const converted = entry.unit === 'lb'
       ? `≈ ${(entry.weight * LB_TO_KG).toFixed(1)} kg`
       : '';
@@ -291,8 +465,12 @@ function renderScheduleList() {
     card.innerHTML = `
       <div class="workout-card__header">
         <h3 class="workout-card__title">${displayName}</h3>
-        <button class="workout-card__delete" type="button">Delete</button>
+        <div class="workout-card__actions">
+          <button class="workout-card__edit" type="button">Edit name</button>
+          <button class="workout-card__delete" type="button">Delete</button>
+        </div>
       </div>
+      <p class="workout-card__category">${displayCategory}</p>
       <div class="workout-card__grid">
         <div class="workout-card__field">
           <label>Weight</label>
@@ -321,6 +499,26 @@ function renderScheduleList() {
       persistState();
       renderSchedule();
       renderCalendar();
+    });
+
+    card.querySelector('.workout-card__edit').addEventListener('click', () => {
+      const nextName = window.prompt('Exercise name', displayName);
+      if (nextName === null) return;
+      const trimmed = nextName.trim();
+      if (!trimmed) return;
+
+      const linkedExercise = state.exercises.find((item) => item.id === entry.exerciseId);
+      if (linkedExercise) {
+        const renamed = applyExerciseRename(linkedExercise.id, trimmed);
+        if (!renamed) return;
+      } else {
+        entry.exerciseName = trimmed;
+      }
+
+      persistState();
+      renderTaskList();
+      renderScheduleFormOptions();
+      renderScheduleList();
     });
 
     const fields = card.querySelectorAll('[data-field]');
@@ -356,7 +554,38 @@ function renderSchedule() {
   renderScheduleList();
 }
 
-function addExercise(name) {
+function getExerciseCategory(exerciseId) {
+  const exercise = state.exercises.find((item) => item.id === exerciseId);
+  return exercise?.category || DEFAULT_EXERCISE_CATEGORY;
+}
+
+function syncEntryExerciseSnapshot(exerciseId) {
+  const exercise = state.exercises.find((item) => item.id === exerciseId);
+  if (!exercise) return;
+  state.entries.forEach((entry) => {
+    if (entry.exerciseId === exerciseId) {
+      entry.exerciseName = exercise.name;
+      entry.exerciseCategory = exercise.category;
+    }
+  });
+}
+
+function applyExerciseRename(exerciseId, nextName) {
+  const trimmed = (nextName || '').trim();
+  if (!trimmed) return false;
+  const exercise = state.exercises.find((item) => item.id === exerciseId);
+  if (!exercise) return false;
+  const exists = state.exercises.some(
+    (item) => item.id !== exerciseId && item.name.toLowerCase() === trimmed.toLowerCase(),
+  );
+  if (exists) return false;
+
+  exercise.name = trimmed;
+  syncEntryExerciseSnapshot(exerciseId);
+  return true;
+}
+
+function addExercise(name, category) {
   const trimmed = name.trim();
   if (!trimmed) return;
   const exists = state.exercises.some((exercise) => exercise.name.toLowerCase() === trimmed.toLowerCase());
@@ -368,6 +597,7 @@ function addExercise(name) {
   state.exercises.push({
     id: crypto.randomUUID(),
     name: trimmed,
+    category: normalizeCategory(category),
     createdAt: new Date().toISOString(),
   });
   persistState();
@@ -391,6 +621,7 @@ function addEntry() {
     dateKey: dateKey(state.selectedDate),
     exerciseId: exercise.id,
     exerciseName: exercise.name,
+    exerciseCategory: exercise.category,
     weight,
     unit,
     reps,
@@ -438,7 +669,7 @@ function bindEvents() {
 
   DOM.taskForm.addEventListener('submit', (event) => {
     event.preventDefault();
-    addExercise(DOM.taskInput.value);
+    addExercise(DOM.taskInput.value, DOM.taskCategory?.value);
   });
 
   DOM.scheduleDateInput.addEventListener('change', (event) => {
@@ -463,9 +694,24 @@ function bindEvents() {
   DOM.weightUnit.addEventListener('change', () => {
     updateWeightConversion(DOM.weightInput.value, DOM.weightUnit.value, DOM.weightConvert);
   });
+
+  if (DOM.exerciseSearch) {
+    DOM.exerciseSearch.addEventListener('input', () => {
+      renderScheduleFormOptions();
+    });
+  }
+
+  if (DOM.exerciseCategoryFilter) {
+    DOM.exerciseCategoryFilter.addEventListener('change', () => {
+      renderScheduleFormOptions();
+    });
+  }
 }
 
 loadState();
+seedPresetExercises();
+renderCategorySelect(DOM.taskCategory);
+renderCategorySelect(DOM.exerciseCategoryFilter, { includeAll: true });
 renderCalendar();
 renderSchedule();
 renderTaskList();

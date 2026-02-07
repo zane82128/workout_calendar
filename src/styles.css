@@ -244,6 +244,15 @@ body {
   font-size: 1rem;
 }
 
+.task-panel__select {
+  min-width: 110px;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  font-size: 1rem;
+  background: var(--surface);
+}
+
 .task-panel__submit {
   border: none;
   background: var(--primary);
@@ -269,6 +278,16 @@ body {
   gap: 0.75rem;
 }
 
+.task-item__content {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.task-item__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .task-item__name {
   font-weight: 600;
 }
@@ -285,6 +304,56 @@ body {
   border-radius: 999px;
   padding: 0.4rem 0.8rem;
   cursor: pointer;
+}
+
+.task-item__edit {
+  border: none;
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--primary);
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+
+.task-item__edit-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.task-item__edit-input {
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  font-size: 0.95rem;
+  min-width: 160px;
+}
+
+.task-item__edit-select {
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  font-size: 0.95rem;
+  background: var(--surface);
+}
+
+.task-item__save,
+.task-item__cancel {
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+
+.task-item__save {
+  background: var(--primary);
+  color: #fff;
+}
+
+.task-item__cancel {
+  background: rgba(148, 163, 184, 0.2);
+  color: var(--text);
 }
 
 .schedule__header {
@@ -321,6 +390,10 @@ body {
 .schedule__form-row {
   display: grid;
   gap: 0.5rem;
+}
+
+#exercise-search {
+  margin-bottom: 0.1rem;
 }
 
 .schedule__form-row--grid {
@@ -402,6 +475,26 @@ body {
 .workout-card__title {
   margin: 0;
   font-size: 1.05rem;
+}
+
+.workout-card__category {
+  margin: -0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.workout-card__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.workout-card__edit {
+  border: none;
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--primary);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
 }
 
 .workout-card__delete {

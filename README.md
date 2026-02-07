@@ -5,7 +5,9 @@
 ## 功能特色
 
 - **訓練清單（Task List）**：新增/管理訓練動作，作為紀錄的選項來源。
+- **大分類管理**：支援 `胸/背/腿/肩膀/手臂/臀/有氧`，可在 Tasks 指定分類。
 - **Schedule 面板**：類似行事曆 Schedule，但移除時間軸，改成純訓練動作的 Event Block。
+- **分類篩選 + 搜尋**：Schedule 可先用分類篩選，再用關鍵字搜尋動作。
 - **Event Block 可編輯**：每筆紀錄包含重量、次數、組數欄位，即時修改並同步到本地端。
 - **重量單位切換**：提供 `kg / lb`，當使用 `lb` 時同步顯示換算後的 `kg`。
 - **本地端儲存**：資料全存 `localStorage`，不需要登入或雲端。
@@ -19,6 +21,7 @@ workout_calendar/
     index.html
     styles.css
     main.js
+    preset-exercises.js
     manifest.json
     sw.js
     icons/
@@ -41,9 +44,16 @@ workout_calendar/
 
 - `localStorage` key: `workoutCalendar.v1`
 - 結構摘要：
-  - `exercises`: `[ { id, name, createdAt } ]`
-  - `entries`: `[ { id, dateKey, exerciseId, exerciseName, weight, unit, reps, sets, createdAt } ]`
+  - `exercises`: `[ { id, name, category, createdAt } ]`
+  - `entries`: `[ { id, dateKey, exerciseId, exerciseName, exerciseCategory, weight, unit, reps, sets, createdAt } ]`
+  - `presetVersionApplied`: 已套用的預設動作版本
   - `selectedDate`: 使用者最後瀏覽的日期
+
+## 預設動作清單
+
+- 檔案：`src/preset-exercises.js`
+- 修改 `PRESET_EXERCISES` 可調整預先載入的訓練動作與分類（`{ name, category }`）。
+- 若你改了清單，請同步調整 `PRESET_VERSION`，系統才會把新版本清單套用到本地端。
 
 ## 文件
 

@@ -66,6 +66,7 @@
                   autocomplete="off"
                   required
                 />
+                <select id="task-category" class="task-panel__select"></select>
                 <button type="submit" class="task-panel__submit">Add</button>
               </form>
               <div class="task-panel__list" id="task-list" role="list"></div>
@@ -86,6 +87,14 @@
               <form class="schedule__form" id="schedule-form">
                 <div class="schedule__form-row">
                   <label class="schedule__form-label" for="exercise-select">Exercise</label>
+                  <select id="exercise-category-filter" class="schedule__select"></select>
+                  <input
+                    id="exercise-search"
+                    type="text"
+                    class="schedule__input"
+                    placeholder="Search exercise..."
+                    autocomplete="off"
+                  />
                   <select id="exercise-select" class="schedule__select"></select>
                 </div>
                 <div class="schedule__form-row schedule__form-row--grid">
