@@ -48,6 +48,10 @@ const DOM = {
   setsInput: document.getElementById('sets-input'),
   scheduleHint: document.getElementById('schedule-hint'),
   scheduleList: document.getElementById('schedule-list'),
+  progressExercise: document.getElementById('progress-exercise'),
+  progressGranularity: document.getElementById('progress-granularity'),
+  progressChart: document.getElementById('progress-chart'),
+  progressSummary: document.getElementById('progress-summary'),
   calendarButtons: document.querySelectorAll('.calendar__btn[data-action]'),
 };
 
@@ -165,6 +169,17 @@ function dateKey(date) {
   return `${year}-${month}-${day}`;
 }
 
+function parseDateKey(key) {
+  const text = String(key || '');
+  const [yearText, monthText, dayText] = text.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (!year || !month || !day) return null;
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function isSameDay(dateA, dateB) {
   return (
     dateA.getFullYear() === dateB.getFullYear()
@@ -208,10 +223,14 @@ function setActivePage(page) {
   });
 
   if (page === 'schedule') {
+    focusDate(new Date());
     renderSchedule();
   }
   if (page === 'tasks') {
     renderTaskList();
+  }
+  if (page === 'progress') {
+    renderProgress();
   }
 }
 
@@ -246,10 +265,7 @@ function renderCalendar() {
   DOM.month.textContent = monthName;
   DOM.year.textContent = state.viewDate.getFullYear();
 
-  const counts = state.entries.reduce((acc, entry) => {
-    acc[entry.dateKey] = (acc[entry.dateKey] || 0) + 1;
-    return acc;
-  }, {});
+  const workoutDays = new Set(state.entries.map((entry) => entry.dateKey));
 
   DOM.days.innerHTML = '';
   const dates = buildCalendarDates(state.viewDate);
@@ -262,14 +278,11 @@ function renderCalendar() {
     if (isSameDay(date, state.selectedDate)) button.classList.add('calendar__day--selected');
 
     const key = dateKey(date);
-    if (counts[key]) {
+    if (workoutDays.has(key)) {
       button.classList.add('calendar__day--workout');
     }
 
-    button.innerHTML = `
-      <span>${dayFormatter.format(date)}</span>
-      ${counts[key] ? `<span class="calendar__day-count">${counts[key]}x</span>` : ''}
-    `;
+    button.innerHTML = `<span>${dayFormatter.format(date)}</span>`;
     button.addEventListener('click', () => {
       if (outside) {
         focusDate(date);
@@ -316,6 +329,7 @@ function renderTaskList() {
         persistState();
         renderTaskList();
         renderScheduleFormOptions();
+        renderProgress();
       });
 
       row.querySelector('.task-item__edit').addEventListener('click', () => {
@@ -356,6 +370,7 @@ function renderTaskList() {
           renderTaskList();
           renderScheduleFormOptions();
           renderScheduleList();
+          renderProgress();
         });
 
         cancelBtn.addEventListener('click', () => {
@@ -473,6 +488,10 @@ function renderScheduleList() {
       <p class="workout-card__category">${displayCategory}</p>
       <div class="workout-card__grid">
         <div class="workout-card__field">
+          <label>Date</label>
+          <input type="date" value="${entry.dateKey}" data-field="dateKey" />
+        </div>
+        <div class="workout-card__field">
           <label>Weight</label>
           <div class="workout-card__weight">
             <input type="number" min="0" step="0.5" value="${entry.weight}" data-field="weight" />
@@ -499,6 +518,7 @@ function renderScheduleList() {
       persistState();
       renderSchedule();
       renderCalendar();
+      renderProgress();
     });
 
     card.querySelector('.workout-card__edit').addEventListener('click', () => {
@@ -519,6 +539,7 @@ function renderScheduleList() {
       renderTaskList();
       renderScheduleFormOptions();
       renderScheduleList();
+      renderProgress();
     });
 
     const fields = card.querySelectorAll('[data-field]');
@@ -528,16 +549,28 @@ function renderScheduleList() {
         const keyName = target.dataset.field;
         const current = state.entries.find((item) => item.id === entry.id);
         if (!current) return;
-        if (keyName === 'unit') {
+        if (keyName === 'dateKey') {
+          if (!parseDateKey(target.value)) return;
+          current.dateKey = target.value;
+        } else if (keyName === 'unit') {
           current.unit = target.value;
         } else {
           const value = target.value;
           current[keyName] = value === '' ? 0 : Number(value);
         }
         persistState();
+        if (keyName === 'dateKey') {
+          renderCalendar();
+          renderScheduleList();
+          renderProgress();
+          return;
+        }
         if (keyName === 'weight' || keyName === 'unit') {
           const convertEl = card.querySelector('.workout-card__convert');
           updateWeightConversion(current.weight, current.unit, convertEl);
+        }
+        if (keyName === 'weight' || keyName === 'reps' || keyName === 'sets') {
+          renderProgress();
         }
       };
       field.addEventListener('input', handler);
@@ -552,6 +585,140 @@ function renderSchedule() {
   renderScheduleHeader();
   renderScheduleFormOptions();
   renderScheduleList();
+}
+
+function getEntryVolume(entry) {
+  return Number(entry.weight || 0) * Number(entry.reps || 0) * Number(entry.sets || 0);
+}
+
+function renderProgressExerciseOptions() {
+  if (!DOM.progressExercise) return;
+  const previousValue = DOM.progressExercise.value;
+  DOM.progressExercise.innerHTML = '';
+  const sortedExercises = state.exercises.slice().sort((a, b) => a.name.localeCompare(b.name));
+  sortedExercises.forEach((exercise) => {
+    const option = document.createElement('option');
+    option.value = exercise.id;
+    option.textContent = `${exercise.name} (${exercise.category})`;
+    DOM.progressExercise.appendChild(option);
+  });
+  if (!sortedExercises.length) return;
+  const hasPrevious = sortedExercises.some((exercise) => exercise.id === previousValue);
+  DOM.progressExercise.value = hasPrevious ? previousValue : sortedExercises[0].id;
+}
+
+function getProgressData(exerciseId, granularity) {
+  const entries = state.entries.filter((entry) => entry.exerciseId === exerciseId);
+  const aggregate = new Map();
+  entries.forEach((entry) => {
+    const bucket = granularity === 'month' ? entry.dateKey.slice(0, 7) : entry.dateKey;
+    const current = aggregate.get(bucket) || 0;
+    aggregate.set(bucket, current + getEntryVolume(entry));
+  });
+
+  const keys = Array.from(aggregate.keys()).sort((a, b) => a.localeCompare(b));
+  return keys.map((key) => ({ label: key, value: aggregate.get(key) || 0 }));
+}
+
+function renderProgressChart(points) {
+  if (!DOM.progressChart) return;
+  const canvas = DOM.progressChart;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const cssWidth = canvas.clientWidth || 900;
+  const cssHeight = 320;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(cssWidth * dpr);
+  canvas.height = Math.floor(cssHeight * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+  ctx.fillStyle = 'rgba(148, 163, 184, 0.16)';
+  ctx.fillRect(0, 0, cssWidth, cssHeight);
+
+  if (!points.length) {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '16px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillText('No data yet for selected exercise.', cssWidth / 2, cssHeight / 2);
+    return;
+  }
+
+  const left = 44;
+  const right = 16;
+  const top = 20;
+  const bottom = 34;
+  const chartW = cssWidth - left - right;
+  const chartH = cssHeight - top - bottom;
+  const maxValue = Math.max(...points.map((point) => point.value), 1);
+
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(left, top);
+  ctx.lineTo(left, top + chartH);
+  ctx.lineTo(left + chartW, top + chartH);
+  ctx.stroke();
+
+  const stepX = points.length > 1 ? chartW / (points.length - 1) : 0;
+  const pathPoints = points.map((point, index) => {
+    const x = left + (points.length > 1 ? stepX * index : chartW / 2);
+    const y = top + chartH - (point.value / maxValue) * chartH;
+    return { x, y, ...point };
+  });
+
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  pathPoints.forEach((point, index) => {
+    if (index === 0) ctx.moveTo(point.x, point.y);
+    else ctx.lineTo(point.x, point.y);
+  });
+  ctx.stroke();
+
+  ctx.fillStyle = '#f59e0b';
+  pathPoints.forEach((point) => {
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '11px Segoe UI';
+  ctx.textAlign = 'center';
+  const labelIndexes = points.length <= 6
+    ? points.map((_, index) => index)
+    : [0, Math.floor(points.length / 2), points.length - 1];
+  labelIndexes.forEach((index) => {
+    const point = pathPoints[index];
+    ctx.fillText(point.label, point.x, top + chartH + 16);
+  });
+
+  ctx.textAlign = 'left';
+  ctx.fillText('0', 6, top + chartH + 4);
+  ctx.fillText(`${Math.round(maxValue)}`, 6, top + 4);
+}
+
+function renderProgress() {
+  if (!DOM.progressExercise || !DOM.progressGranularity || !DOM.progressSummary) return;
+  renderProgressExerciseOptions();
+  const exerciseId = DOM.progressExercise.value;
+  if (!exerciseId) {
+    renderProgressChart([]);
+    DOM.progressSummary.textContent = '請先在 Tasks 建立訓練動作。';
+    return;
+  }
+
+  const granularity = DOM.progressGranularity.value || 'day';
+  const exercise = state.exercises.find((item) => item.id === exerciseId);
+  const points = getProgressData(exerciseId, granularity);
+  renderProgressChart(points);
+
+  const total = points.reduce((sum, point) => sum + point.value, 0);
+  DOM.progressSummary.textContent = points.length
+    ? `${exercise?.name || 'Exercise'} · ${granularity === 'day' ? '日' : '月'}軸，共 ${points.length} 筆，總容量 ${Math.round(total)}`
+    : `${exercise?.name || 'Exercise'} 目前沒有可用紀錄。`;
 }
 
 function getExerciseCategory(exerciseId) {
@@ -604,6 +771,7 @@ function addExercise(name, category) {
   DOM.taskInput.value = '';
   renderTaskList();
   renderScheduleFormOptions();
+  renderProgress();
 }
 
 function addEntry() {
@@ -636,6 +804,7 @@ function addEntry() {
   updateWeightConversion('', unit, DOM.weightConvert);
   renderScheduleList();
   renderCalendar();
+  renderProgress();
 }
 
 function bindEvents() {
@@ -706,6 +875,24 @@ function bindEvents() {
       renderScheduleFormOptions();
     });
   }
+
+  if (DOM.progressExercise) {
+    DOM.progressExercise.addEventListener('change', () => {
+      renderProgress();
+    });
+  }
+
+  if (DOM.progressGranularity) {
+    DOM.progressGranularity.addEventListener('change', () => {
+      renderProgress();
+    });
+  }
+
+  window.addEventListener('resize', () => {
+    if (state.activePage === 'progress') {
+      renderProgress();
+    }
+  });
 }
 
 loadState();
@@ -715,6 +902,7 @@ renderCategorySelect(DOM.exerciseCategoryFilter, { includeAll: true });
 renderCalendar();
 renderSchedule();
 renderTaskList();
+renderProgress();
 bindEvents();
 
 if ('serviceWorker' in navigator) {

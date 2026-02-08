@@ -39,6 +39,16 @@
                 </div>
                 <div id="calendar-days" class="calendar__days" role="grid" aria-labelledby="calendar-month"></div>
               </div>
+              <div class="calendar__legend" aria-label="Workout legend">
+                <div class="calendar__legend-item">
+                  <span class="calendar__legend-swatch calendar__legend-swatch--workout"></span>
+                  <span>有紀錄</span>
+                </div>
+                <div class="calendar__legend-item">
+                  <span class="calendar__legend-swatch calendar__legend-swatch--empty"></span>
+                  <span>無紀錄</span>
+                </div>
+              </div>
               <div class="calendar__summary">
                 <div>
                   <p class="calendar__summary-label">Selected date</p>
@@ -125,11 +135,41 @@
             </section>
           </div>
         </section>
+        <section class="page" data-page="progress">
+          <div class="page__inner">
+            <section class="progress panel" aria-live="polite">
+              <header class="progress__header">
+                <div>
+                  <p class="progress__label">Progress</p>
+                  <h2>Volume Trend</h2>
+                </div>
+              </header>
+              <div class="progress__controls">
+                <div class="progress__control">
+                  <label for="progress-exercise">Exercise</label>
+                  <select id="progress-exercise" class="schedule__select"></select>
+                </div>
+                <div class="progress__control">
+                  <label for="progress-granularity">X axis</label>
+                  <select id="progress-granularity" class="schedule__select">
+                    <option value="day">Day</option>
+                    <option value="month">Month</option>
+                  </select>
+                </div>
+              </div>
+              <div class="progress__chart-wrap">
+                <canvas id="progress-chart" class="progress__chart" width="900" height="320"></canvas>
+              </div>
+              <p id="progress-summary" class="progress__summary"></p>
+            </section>
+          </div>
+        </section>
       </div>
       <nav class="bottom-nav" aria-label="Primary">
         <button class="bottom-nav__item is-active" type="button" data-page="home">Home</button>
         <button class="bottom-nav__item" type="button" data-page="tasks">Tasks</button>
         <button class="bottom-nav__item" type="button" data-page="schedule">Schedule</button>
+        <button class="bottom-nav__item" type="button" data-page="progress">Progress</button>
       </nav>
     </main>
     <script src="main.js?v=20260206" type="module"></script>

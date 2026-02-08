@@ -7,8 +7,8 @@
   --text-muted: #6b7280;
   --primary: #2563eb;
   --primary-soft: #dbeafe;
-  --accent: #16a34a;
-  --accent-soft: rgba(22, 163, 74, 0.15);
+  --accent: #f59e0b;
+  --accent-soft: rgba(245, 158, 11, 0.35);
   --danger: #ef4444;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
@@ -174,14 +174,46 @@ body {
 }
 
 .calendar__day--workout {
-  background: var(--accent-soft);
-  border: 2px solid rgba(22, 163, 74, 0.4);
+  background: #f8b84a;
+  border: 2px solid #f59e0b;
+  color: #0f172a;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
 }
 
-.calendar__day-count {
-  font-size: 0.7rem;
-  color: var(--accent);
-  font-weight: 600;
+.calendar__day--workout.calendar__day--selected {
+  border-color: #ea580c;
+}
+
+.calendar__legend {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 0.9rem;
+}
+
+.calendar__legend-item {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.calendar__legend-swatch {
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 0.25rem;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+}
+
+.calendar__legend-swatch--workout {
+  background: #f8b84a;
+  border-color: #f59e0b;
+}
+
+.calendar__legend-swatch--empty {
+  background: rgba(15, 23, 42, 0.05);
 }
 
 .calendar__summary {
@@ -457,6 +489,50 @@ body {
   gap: 1rem;
 }
 
+.progress__header h2 {
+  margin: 0.2rem 0 0;
+}
+
+.progress__label {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.progress__controls {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.progress__control {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.progress__control label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.progress__chart-wrap {
+  margin-top: 1rem;
+  border-radius: 0.85rem;
+  overflow: hidden;
+}
+
+.progress__chart {
+  width: 100%;
+  height: 320px;
+  display: block;
+}
+
+.progress__summary {
+  margin: 0.75rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
 .workout-card {
   padding: 1rem;
   border-radius: 1rem;
@@ -553,7 +629,7 @@ body {
   background: var(--surface);
   border-top: 1px solid rgba(15, 23, 42, 0.08);
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.5rem;
   padding: 0.75rem 1rem calc(0.75rem + var(--safe-bottom));
 }
@@ -605,16 +681,23 @@ body {
     --text: #e2e8f0;
     --text-muted: #94a3b8;
     --primary-soft: rgba(37, 99, 235, 0.2);
-    --accent-soft: rgba(22, 163, 74, 0.2);
+    --accent-soft: rgba(245, 158, 11, 0.45);
   }
 
   .calendar__day {
     background: rgba(148, 163, 184, 0.12);
   }
 
+  .calendar__day--workout {
+    background: #f8b84a;
+    border-color: #f59e0b;
+    color: #0f172a;
+  }
+
   .calendar__summary,
   .task-item,
-  .workout-card {
+  .workout-card,
+  .progress__chart-wrap {
     background: rgba(148, 163, 184, 0.12);
   }
 }
