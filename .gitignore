@@ -25,3 +25,6 @@ pnpm-debug.log*
 # Python cache (if used for local scripts)
 __pycache__/
 *.pyc
+
+# Node
+node_modules/

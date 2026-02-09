@@ -1,0 +1,69 @@
+{
+  "viewport": { "width": 1000, "height": 900 },
+  "pages": [
+    {
+      "name": "home",
+      "title": "Home Page Component Map",
+      "activate": "button.bottom-nav__item[data-page='home']",
+      "elements": [
+        { "label": "Calendar Nav", "selector": ".calendar__nav" },
+        { "label": "Today Button", "selector": "#go-today" },
+        { "label": "Month Grid", "selector": "#calendar-days" },
+        { "label": "Date Cell (Workout Highlight)", "selector": "#calendar-days .calendar__day--workout" },
+        { "label": "Calendar Legend", "selector": ".calendar__legend" },
+        { "label": "Selected Date Summary", "selector": ".calendar__summary" },
+        { "label": "Open Schedule Button", "selector": "#open-schedule" }
+      ]
+    },
+    {
+      "name": "task",
+      "title": "Tasks Page Component Map",
+      "activate": "button.bottom-nav__item[data-page='tasks']",
+      "elements": [
+        { "label": "Task Header", "selector": ".task-panel__header" },
+        { "label": "Task Input", "selector": "#task-input" },
+        { "label": "Task Category Select", "selector": "#task-category" },
+        { "label": "Task Add Button", "selector": "#task-form .task-panel__submit" },
+        { "label": "Task List", "selector": "#task-list" },
+        { "label": "Task Item Card", "selector": "#task-list .task-item" },
+        { "label": "Task Edit Button", "selector": "#task-list .task-item .task-item__edit" },
+        { "label": "Task Delete Button", "selector": "#task-list .task-item .task-item__delete" },
+        { "label": "Bottom Nav", "selector": ".bottom-nav" }
+      ]
+    },
+    {
+      "name": "schedule",
+      "title": "Schedule Page Component Map",
+      "activate": "button.bottom-nav__item[data-page='schedule']",
+      "elements": [
+        { "label": "Header Date Picker", "selector": "#schedule-date-input" },
+        { "label": "Exercise Category Filter", "selector": "#exercise-category-filter" },
+        { "label": "Exercise Search Input", "selector": "#exercise-search" },
+        { "label": "Exercise Select", "selector": "#exercise-select" },
+        { "label": "Add Entry Button", "selector": "#schedule-form .schedule__submit" },
+        { "label": "Workout Entry Card", "selector": "#schedule-list .workout-card" },
+        { "label": "Entry Copy Button", "selector": "#schedule-list .workout-card .workout-card__copy" },
+        { "label": "Entry Edit Name Button", "selector": "#schedule-list .workout-card .workout-card__edit" },
+        { "label": "Entry Delete Button", "selector": "#schedule-list .workout-card .workout-card__delete" },
+        { "label": "Entry Date Input", "selector": "#schedule-list .workout-card [data-field='dateKey']" },
+        { "label": "Entry Weight Input", "selector": "#schedule-list .workout-card [data-field='weight']" },
+        { "label": "Entry Unit Select", "selector": "#schedule-list .workout-card [data-field='unit']" },
+        { "label": "Entry Reps Input", "selector": "#schedule-list .workout-card [data-field='reps']" },
+        { "label": "Entry Sets Input", "selector": "#schedule-list .workout-card [data-field='sets']" },
+        { "label": "Entry Note Input", "selector": "#schedule-list .workout-card [data-field='note']" }
+      ]
+    },
+    {
+      "name": "progress",
+      "title": "Progress Page Component Map",
+      "activate": "button.bottom-nav__item[data-page='progress']",
+      "elements": [
+        { "label": "Progress Header", "selector": ".progress__header" },
+        { "label": "Progress Exercise Select", "selector": "#progress-exercise" },
+        { "label": "Progress Granularity Select", "selector": "#progress-granularity" },
+        { "label": "Progress Chart Canvas", "selector": "#progress-chart" },
+        { "label": "Progress Summary", "selector": "#progress-summary" }
+      ]
+    }
+  ]
+}

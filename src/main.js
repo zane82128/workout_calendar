@@ -41,11 +41,6 @@ const DOM = {
   exerciseCategoryFilter: document.getElementById('exercise-category-filter'),
   exerciseSearch: document.getElementById('exercise-search'),
   exerciseSelect: document.getElementById('exercise-select'),
-  weightInput: document.getElementById('weight-input'),
-  weightUnit: document.getElementById('weight-unit'),
-  weightConvert: document.getElementById('weight-convert'),
-  repsInput: document.getElementById('reps-input'),
-  setsInput: document.getElementById('sets-input'),
   scheduleHint: document.getElementById('schedule-hint'),
   scheduleList: document.getElementById('schedule-list'),
   progressExercise: document.getElementById('progress-exercise'),
@@ -75,6 +70,10 @@ function loadState() {
       category: normalizeCategory(exercise.category || inferCategoryByName(exercise.name)),
     }));
     state.entries = Array.isArray(parsed.entries) ? parsed.entries : [];
+    state.entries = state.entries.map((entry) => ({
+      ...entry,
+      note: typeof entry.note === 'string' ? entry.note : '',
+    }));
     state.presetVersionApplied = typeof parsed.presetVersionApplied === 'string'
       ? parsed.presetVersionApplied
       : null;
@@ -481,6 +480,7 @@ function renderScheduleList() {
       <div class="workout-card__header">
         <h3 class="workout-card__title">${displayName}</h3>
         <div class="workout-card__actions">
+          <button class="workout-card__copy" type="button">Copy</button>
           <button class="workout-card__edit" type="button">Edit name</button>
           <button class="workout-card__delete" type="button">Delete</button>
         </div>
@@ -510,6 +510,10 @@ function renderScheduleList() {
           <label>Sets</label>
           <input type="number" min="1" step="1" value="${entry.sets}" data-field="sets" />
         </div>
+        <div class="workout-card__field workout-card__field--full">
+          <label>Note</label>
+          <textarea data-field="note" rows="2" placeholder="例如：組間休息 90 秒">${entry.note || ''}</textarea>
+        </div>
       </div>
     `;
 
@@ -519,6 +523,10 @@ function renderScheduleList() {
       renderSchedule();
       renderCalendar();
       renderProgress();
+    });
+
+    card.querySelector('.workout-card__copy').addEventListener('click', () => {
+      duplicateEntry(entry.id);
     });
 
     card.querySelector('.workout-card__edit').addEventListener('click', () => {
@@ -552,6 +560,8 @@ function renderScheduleList() {
         if (keyName === 'dateKey') {
           if (!parseDateKey(target.value)) return;
           current.dateKey = target.value;
+        } else if (keyName === 'note') {
+          current.note = target.value;
         } else if (keyName === 'unit') {
           current.unit = target.value;
         } else {
@@ -779,10 +789,6 @@ function addEntry() {
   const exerciseId = DOM.exerciseSelect.value;
   const exercise = state.exercises.find((item) => item.id === exerciseId);
   if (!exercise) return;
-  const weight = DOM.weightInput.value === '' ? 0 : Number(DOM.weightInput.value);
-  const reps = DOM.repsInput.value === '' ? 0 : Number(DOM.repsInput.value);
-  const sets = DOM.setsInput.value === '' ? 0 : Number(DOM.setsInput.value);
-  const unit = DOM.weightUnit.value;
 
   state.entries.push({
     id: crypto.randomUUID(),
@@ -790,18 +796,29 @@ function addEntry() {
     exerciseId: exercise.id,
     exerciseName: exercise.name,
     exerciseCategory: exercise.category,
-    weight,
-    unit,
-    reps,
-    sets,
+    weight: 0,
+    unit: 'kg',
+    reps: 8,
+    sets: 3,
+    note: '',
     createdAt: new Date().toISOString(),
   });
 
   persistState();
-  DOM.weightInput.value = '';
-  DOM.repsInput.value = '';
-  DOM.setsInput.value = '';
-  updateWeightConversion('', unit, DOM.weightConvert);
+  renderScheduleList();
+  renderCalendar();
+  renderProgress();
+}
+
+function duplicateEntry(entryId) {
+  const source = state.entries.find((entry) => entry.id === entryId);
+  if (!source) return;
+  state.entries.push({
+    ...source,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  });
+  persistState();
   renderScheduleList();
   renderCalendar();
   renderProgress();
@@ -854,14 +871,6 @@ function bindEvents() {
   DOM.scheduleForm.addEventListener('submit', (event) => {
     event.preventDefault();
     addEntry();
-  });
-
-  DOM.weightInput.addEventListener('input', () => {
-    updateWeightConversion(DOM.weightInput.value, DOM.weightUnit.value, DOM.weightConvert);
-  });
-
-  DOM.weightUnit.addEventListener('change', () => {
-    updateWeightConversion(DOM.weightInput.value, DOM.weightUnit.value, DOM.weightConvert);
   });
 
   if (DOM.exerciseSearch) {

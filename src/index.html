@@ -65,7 +65,7 @@
             <section class="task-panel panel" aria-live="polite">
               <header class="task-panel__header">
                 <p class="task-panel__title">Training List</p>
-                <p class="task-panel__subtitle">Add exercises you want to track.</p>
+                <p class="task-panel__subtitle">Add your exercise here first before your schedule begin!</p>
               </header>
               <form class="task-panel__form" id="task-form">
                 <input
@@ -106,25 +106,6 @@
                     autocomplete="off"
                   />
                   <select id="exercise-select" class="schedule__select"></select>
-                </div>
-                <div class="schedule__form-row schedule__form-row--grid">
-                  <label class="schedule__form-label" for="weight-input">Weight</label>
-                  <div class="schedule__weight">
-                    <input id="weight-input" type="number" min="0" step="0.5" class="schedule__input" placeholder="0" />
-                    <select id="weight-unit" class="schedule__select schedule__select--unit">
-                      <option value="kg">kg</option>
-                      <option value="lb">lb</option>
-                    </select>
-                    <span id="weight-convert" class="schedule__convert"></span>
-                  </div>
-                </div>
-                <div class="schedule__form-row schedule__form-row--grid">
-                  <label class="schedule__form-label" for="reps-input">Reps</label>
-                  <input id="reps-input" type="number" min="1" step="1" class="schedule__input" placeholder="8" />
-                </div>
-                <div class="schedule__form-row schedule__form-row--grid">
-                  <label class="schedule__form-label" for="sets-input">Sets</label>
-                  <input id="sets-input" type="number" min="1" step="1" class="schedule__input" placeholder="3" />
                 </div>
                 <div class="schedule__form-actions">
                   <button type="submit" class="schedule__submit">Add Entry</button>

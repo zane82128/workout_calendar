@@ -1,0 +1,11 @@
+{
+  "name": "workout-calendar-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "ui:maps": "node tools/generate-ui-maps.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.52.0"
+  }
+}
