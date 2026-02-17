@@ -396,6 +396,110 @@ body {
   flex-wrap: wrap;
 }
 
+.schedule__timer {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.schedule__timer-bar {
+  width: 100%;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.12);
+  overflow: hidden;
+}
+
+.schedule__timer-fill {
+  height: 100%;
+  width: 2%;
+  min-width: 2%;
+  background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
+  transition: width 0.6s linear;
+}
+
+.schedule__timer-text {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.schedule__timer-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.schedule__timer-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.schedule__timer-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.schedule__timer-btn--start {
+  background: rgba(22, 163, 74, 0.14);
+  color: #16a34a;
+}
+
+.schedule__timer-btn--pause {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--primary);
+}
+
+.schedule__rest-timer {
+  margin-top: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.85rem;
+  background: rgba(15, 23, 42, 0.04);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.schedule__rest-title {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.schedule__rest-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.schedule__rest-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.schedule__rest-input {
+  width: 4.5rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  font-size: 0.9rem;
+  background: var(--surface);
+}
+
+.schedule__rest-time {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.05em;
+}
+
+.schedule__rest-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .schedule__label {
   margin: 0;
   color: var(--text-muted);
@@ -484,6 +588,44 @@ body {
   font-size: 0.85rem;
 }
 
+.schedule__memo {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.schedule__memo-input {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  font-size: 0.95rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.schedule__toast {
+  position: sticky;
+  top: calc(var(--safe-top) + 0.5rem);
+  margin-top: 0.5rem;
+  justify-self: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.92);
+  color: #fff;
+  font-size: 0.82rem;
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.schedule__toast--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .schedule__list {
   margin-top: 1.5rem;
   display: grid;
@@ -563,15 +705,6 @@ body {
 .workout-card__actions {
   display: flex;
   gap: 0.5rem;
-}
-
-.workout-card__edit {
-  border: none;
-  background: rgba(37, 99, 235, 0.12);
-  color: var(--primary);
-  border-radius: 999px;
-  padding: 0.35rem 0.8rem;
-  cursor: pointer;
 }
 
 .workout-card__copy {

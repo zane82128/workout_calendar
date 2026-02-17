@@ -1,8 +1,26 @@
+# function modifying
+
 先查看README.md以及develop_log.md，裡面有關於這個project的detail與module定義
 
-1. 修改workout highlight, 把有紀錄的date block整塊變成橘色的 這樣應該比較明顯，裡面的日期可以變成黑色的，並且不要顯示次數
-2. 在home page上顯示兩個小格子，像label的功能，顯示說橘色的是有紀錄的，一般的是沒有紀錄的
-3. 另外在Schedule那邊的event block讓他也多加一個可以選擇日期的功能，這樣user紀錄錯日期才可以直接移動過去，另外讓user點開這個schedule的時候自動初始化到今天的日期，避免紀錄到錯誤的日期
-4. 我想要做一個可以比對同個動作的進步軌跡，但我目前還沒想到一個比較好的做法，可能是多一個page叫做紀錄軌跡，在這個page裡面我可以選取某個特定動作，然後page上就會顯示折線圖，是我一路走來同個動作的總容量比較(重量*次數*組數)，X軸是到今天的日期，y軸是總容量，然後可以選取X軸是以月分當作基準還是要以天數
+以下我會以page為單位來區隔你要完成的工作 
+## Home page
+
+## Schedule page 
+
+1. 讓rest timer的響鈴持續一分鐘，可以按pause鍵來提前關閉響鈴
+
+
+# UI labeling update
+先查看/home/zane82128/personal/workout_calendar/docs/ui_component_maps，裡面有關於這個project的UI元件定義與名稱，對於原本就存在的元件，請沿用舊元件的名稱，新出現的元件請以合乎邏輯的方式命名，避免版本之間的混亂
+
+我剛剛做了一些會影像到UI的改動，請根據"/home/zane82128/personal/workout_calendar/docs/ui_component_maps/*_raw.png"，產生對應的 "*_annotated.png"
 
 請你以一個專業的軟體工程師與系統架構施，從code的可讀性以及日後的可維護性的角度下手，在保證程式安全性的情況下你可以任意安排你的工作順序，完成任務後修改對應的README.md與develop_log.md
+
+# TBD
+1. 是否要加入資料匯出/匯入（JSON）避免清除瀏覽器資料後遺失？
+2. Progress 是否要提供區間篩選（近 30 天 / 90 天 / 1 年）？s
+3. Home page: 顯示四個禮拜就好
+4. schedule page: 手機版面調整?
+5. schedule page: workout entry card 動作完成要顯示訊息
+6. 新增Program功能(先討論一下計畫與細節再執行)

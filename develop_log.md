@@ -10,9 +10,15 @@
 - **Add Entry 簡化**：新增紀錄時只需選動作，詳細欄位移到卡片內編輯。
 - **Event Block 可編輯**：每個訓練動作卡片內含日期、重量、次數、組數欄位，並可複製整筆 detail。
 - **備註欄位**：每張 Workout Entry Card 新增 note，可記錄動作相關補充資訊。
+- **Record Memo**：Schedule 新增 `Setting for my record` 備忘錄欄位，內容持久化到本地端。
+- **Schedule Session Timer**：Schedule 最上方新增 timer bar，追蹤當次訓練經過時間。
+- **Rest Timer**：Session Timer 下方新增組間休息倒數計時，可設定 `mins/secs` 並 Start/Pause。
+- **Rest Timer Alarm**：倒數到 0 時觸發提醒鈴聲並持續 1 分鐘（Web Audio API，輸出到瀏覽器預設音訊裝置），可用 `Pause` 提前停止。
+- **Add Entry 提示**：新增訓練後會顯示「已新增xxx」小視窗。
 - **重量單位切換**：提供 `kg / lb` 選擇，當使用 `lb` 時同步顯示換算後的 `kg`。
 - **本地端儲存**：所有紀錄使用 `localStorage` 存取，不需要登入或雲端。
 - **日曆高亮**：Home 月曆中有訓練紀錄的日期會整塊橘色標示，並有圖例顯示有/無紀錄。
+- **Home 四週視窗**：Home Month Grid 固定顯示「前兩週 + 本週 + 下週」共 4 週。
 - **Progress 折線圖**：新增 Progress 分頁，可選動作並切換日/月聚合顯示容量趨勢。
 - **GitHub Pages 友善**：純靜態檔案，可直接佈署在 GitHub Pages。
 
@@ -50,6 +56,13 @@ workout_calendar/
   - `exercises`: `[ { id, name, category, createdAt } ]`
   - `entries`: `[ { id, dateKey, exerciseId, exerciseName, exerciseCategory, weight, unit, reps, sets, note, createdAt } ]`
   - `presetVersionApplied`: 已套用的預設動作版本
+  - `recordMemo`: Schedule 的 `Setting for my record` 內容
+  - `scheduleSessionStartedAt`: Schedule timer 的 session 起始時間
+  - `restTimerMinutes`: Rest Timer 設定分鐘數
+  - `restTimerSeconds`: Rest Timer 設定秒數
+  - `restTimerRemainingSeconds`: Rest Timer 剩餘秒數
+  - `restTimerRunning`: Rest Timer 是否執行中
+  - `restTimerStartedAt`: Rest Timer 倒數起始時間
   - `selectedDate`: 使用者最後瀏覽的日期
 
 ## 開發 / 部署
@@ -68,7 +81,7 @@ workout_calendar/
 - 移除登入與雲端資料流程，改為全 `localStorage` 儲存。
 - 調整 Schedule 面板為訓練動作卡片，不使用時間軸。
 - Tasks 面板改為訓練動作清單，可新增/刪除/編輯名稱。
-- Tasks 與 Schedule 都可編輯動作名稱，並同步更新歷史訓練紀錄。
+- 僅保留 Tasks 動作名稱編輯；Schedule card 的 `Edit name` 按鈕已移除以簡化流程。
 - Schedule 的 Exercise 區塊新增關鍵字搜尋。
 - 新增大分類：`胸/背/腿/肩膀/手臂/臀/有氧`。
 - Tasks 新增動作時可指定分類，編輯時可修改分類。
@@ -80,6 +93,14 @@ workout_calendar/
 - Home 月曆改為「有訓練日期」橘色整塊標示，不再顯示次數。
 - Home 新增 legend（有紀錄/無紀錄）提升辨識度。
 - Schedule 頁面每次開啟會自動切到今天日期。
+- Home Month Grid 改為 4 週視窗（前兩週 + 本週 + 下週），並改為以週為單位切換上一段/下一段。
+- Schedule 頂部新增 `Session Timer Bar`，每次進入 Schedule 會重置 session 計時。
+- Session Timer 新增 `Start/Pause` 控制按鈕，支援暫停與續跑。
+- Session Timer 下方新增 `Rest Timer`（分秒設定、倒數顯示、Start/Pause 控制）。
+- Rest Timer 倒數結束時顯示提示並播放持續 1 分鐘的提示音（Web Audio API 鈴聲 pattern），可按 `Pause` 提前關閉。
+- Schedule `Add Entry` 成功後顯示 `已新增xxx` toast 訊息。
+- Schedule 新增 `Setting for my record` memo，輸入即自動儲存到 `localStorage`。
+- Schedule Workout Entry Card 移除 `Entry Edit Name Button`。
 - Schedule 每筆紀錄新增日期欄位，可直接改日期來移動紀錄。
 - 新增 Progress 分頁與折線圖，統計同動作總容量（重量*次數*組數）。
 - Progress 支援 X 軸日/月切換。

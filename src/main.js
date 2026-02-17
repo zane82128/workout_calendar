@@ -7,6 +7,12 @@ import {
 
 const STORAGE_KEY = 'workoutCalendar.v1';
 const LB_TO_KG = 0.45359237;
+const SCHEDULE_TIMER_CYCLE_SECONDS = 60 * 60;
+const TOAST_DURATION_MS = 1800;
+const REST_TIMER_DEFAULT_MINUTES = 1;
+const REST_TIMER_DEFAULT_SECONDS = 30;
+const REST_ALARM_DURATION_MS = 60 * 1000;
+const REST_ALARM_BURST_INTERVAL_MS = 1200;
 
 const monthFormatter = new Intl.DateTimeFormat('en', { month: 'long' });
 const dayFormatter = new Intl.DateTimeFormat('en', { day: 'numeric' });
@@ -42,6 +48,17 @@ const DOM = {
   exerciseSearch: document.getElementById('exercise-search'),
   exerciseSelect: document.getElementById('exercise-select'),
   scheduleHint: document.getElementById('schedule-hint'),
+  scheduleTimerFill: document.getElementById('schedule-timer-fill'),
+  scheduleTimerText: document.getElementById('schedule-timer-text'),
+  scheduleTimerStart: document.getElementById('schedule-timer-start'),
+  scheduleTimerPause: document.getElementById('schedule-timer-pause'),
+  restTimerMinutes: document.getElementById('rest-timer-minutes'),
+  restTimerSeconds: document.getElementById('rest-timer-seconds'),
+  restTimerDisplay: document.getElementById('rest-timer-display'),
+  restTimerStart: document.getElementById('rest-timer-start'),
+  restTimerPause: document.getElementById('rest-timer-pause'),
+  recordSettingsMemo: document.getElementById('record-settings-memo'),
+  scheduleToast: document.getElementById('schedule-toast'),
   scheduleList: document.getElementById('schedule-list'),
   progressExercise: document.getElementById('progress-exercise'),
   progressGranularity: document.getElementById('progress-granularity'),
@@ -51,13 +68,27 @@ const DOM = {
 };
 
 const state = {
-  viewDate: new Date(),
   selectedDate: new Date(),
   exercises: [],
   entries: [],
   presetVersionApplied: null,
+  recordMemo: '',
+  scheduleTimerElapsedSeconds: 0,
+  scheduleTimerRunning: true,
+  scheduleSessionStartedAt: Date.now(),
+  restTimerMinutes: REST_TIMER_DEFAULT_MINUTES,
+  restTimerSeconds: REST_TIMER_DEFAULT_SECONDS,
+  restTimerRemainingSeconds: REST_TIMER_DEFAULT_MINUTES * 60 + REST_TIMER_DEFAULT_SECONDS,
+  restTimerRunning: false,
+  restTimerStartedAt: Date.now(),
   activePage: 'home',
 };
+
+let scheduleTimerId = null;
+let scheduleToastId = null;
+let restAlarmAudioContext = null;
+let restAlarmIntervalId = null;
+let restAlarmStopTimeoutId = null;
 
 function loadState() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -77,11 +108,36 @@ function loadState() {
     state.presetVersionApplied = typeof parsed.presetVersionApplied === 'string'
       ? parsed.presetVersionApplied
       : null;
+    state.recordMemo = typeof parsed.recordMemo === 'string' ? parsed.recordMemo : '';
+    state.scheduleTimerElapsedSeconds = Number.isFinite(Number(parsed.scheduleTimerElapsedSeconds))
+      ? Math.max(0, Number(parsed.scheduleTimerElapsedSeconds))
+      : 0;
+    state.scheduleTimerRunning = typeof parsed.scheduleTimerRunning === 'boolean'
+      ? parsed.scheduleTimerRunning
+      : true;
+    state.scheduleSessionStartedAt = Number.isFinite(Number(parsed.scheduleSessionStartedAt))
+      ? Number(parsed.scheduleSessionStartedAt)
+      : Date.now();
+    state.restTimerMinutes = Number.isFinite(Number(parsed.restTimerMinutes))
+      ? Math.max(0, Math.min(99, Number(parsed.restTimerMinutes)))
+      : REST_TIMER_DEFAULT_MINUTES;
+    state.restTimerSeconds = Number.isFinite(Number(parsed.restTimerSeconds))
+      ? Math.max(0, Math.min(59, Number(parsed.restTimerSeconds)))
+      : REST_TIMER_DEFAULT_SECONDS;
+    const defaultRestSeconds = state.restTimerMinutes * 60 + state.restTimerSeconds;
+    state.restTimerRemainingSeconds = Number.isFinite(Number(parsed.restTimerRemainingSeconds))
+      ? Math.max(0, Number(parsed.restTimerRemainingSeconds))
+      : defaultRestSeconds;
+    state.restTimerRunning = typeof parsed.restTimerRunning === 'boolean'
+      ? parsed.restTimerRunning
+      : false;
+    state.restTimerStartedAt = Number.isFinite(Number(parsed.restTimerStartedAt))
+      ? Number(parsed.restTimerStartedAt)
+      : Date.now();
     if (parsed.selectedDate) {
       const storedDate = new Date(parsed.selectedDate);
       if (!Number.isNaN(storedDate.getTime())) {
         state.selectedDate = storedDate;
-        state.viewDate = new Date(storedDate.getFullYear(), storedDate.getMonth(), 1);
       }
     }
   } catch (error) {
@@ -96,6 +152,15 @@ function persistState() {
       exercises: state.exercises,
       entries: state.entries,
       presetVersionApplied: state.presetVersionApplied,
+      recordMemo: state.recordMemo,
+      scheduleTimerElapsedSeconds: state.scheduleTimerElapsedSeconds,
+      scheduleTimerRunning: state.scheduleTimerRunning,
+      scheduleSessionStartedAt: state.scheduleSessionStartedAt,
+      restTimerMinutes: state.restTimerMinutes,
+      restTimerSeconds: state.restTimerSeconds,
+      restTimerRemainingSeconds: state.restTimerRemainingSeconds,
+      restTimerRunning: state.restTimerRunning,
+      restTimerStartedAt: state.restTimerStartedAt,
       selectedDate: state.selectedDate.toISOString(),
     }),
   );
@@ -187,32 +252,243 @@ function isSameDay(dateA, dateB) {
   );
 }
 
-function buildCalendarDates(baseDate) {
-  const year = baseDate.getFullYear();
-  const month = baseDate.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const startDayIndex = firstDay.getDay();
-  const dates = [];
+function getStartOfWeek(date) {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  start.setDate(start.getDate() - start.getDay());
+  return start;
+}
 
-  for (let i = startDayIndex - 1; i >= 0; i -= 1) {
-    const date = new Date(year, month, -i);
-    dates.push({ date, outside: true });
+function buildFourWeekDates(anchorDate) {
+  const thisWeekStart = getStartOfWeek(anchorDate);
+  const start = new Date(thisWeekStart);
+  start.setDate(start.getDate() - 14);
+  return Array.from({ length: 28 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    const outside = date.getMonth() !== anchorDate.getMonth();
+    return { date, outside };
+  });
+}
+
+function formatTimerLabel(elapsedSeconds) {
+  const minutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+  const seconds = String(elapsedSeconds % 60).padStart(2, '0');
+  return `${minutes}:${seconds}`;
+}
+
+function getConfiguredRestSeconds() {
+  return (state.restTimerMinutes * 60) + state.restTimerSeconds;
+}
+
+function getCurrentRestRemainingSeconds() {
+  if (!state.restTimerRunning) {
+    return Math.max(0, state.restTimerRemainingSeconds);
   }
+  const elapsed = Math.max(0, Math.floor((Date.now() - state.restTimerStartedAt) / 1000));
+  return Math.max(0, state.restTimerRemainingSeconds - elapsed);
+}
 
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    dates.push({ date: new Date(year, month, day), outside: false });
+function renderScheduleMemo() {
+  if (!DOM.recordSettingsMemo) return;
+  DOM.recordSettingsMemo.value = state.recordMemo;
+}
+
+function renderRestTimer() {
+  if (!DOM.restTimerDisplay) return;
+  const remainingSeconds = getCurrentRestRemainingSeconds();
+  DOM.restTimerDisplay.textContent = formatTimerLabel(remainingSeconds);
+
+  if (DOM.restTimerMinutes) {
+    DOM.restTimerMinutes.value = String(state.restTimerMinutes);
+    DOM.restTimerMinutes.disabled = state.restTimerRunning;
   }
-
-  const cellsToFill = 42 - dates.length;
-  for (let day = 1; day <= cellsToFill; day += 1) {
-    dates.push({ date: new Date(year, month + 1, day), outside: true });
+  if (DOM.restTimerSeconds) {
+    DOM.restTimerSeconds.value = String(state.restTimerSeconds).padStart(2, '0');
+    DOM.restTimerSeconds.disabled = state.restTimerRunning;
   }
+  if (DOM.restTimerStart) {
+    DOM.restTimerStart.disabled = state.restTimerRunning || getConfiguredRestSeconds() <= 0;
+  }
+  if (DOM.restTimerPause) {
+    const isAlarmPlaying = restAlarmIntervalId !== null || restAlarmStopTimeoutId !== null;
+    DOM.restTimerPause.disabled = !state.restTimerRunning && !isAlarmPlaying;
+  }
+}
 
-  return dates;
+function renderScheduleTimer() {
+  if (!DOM.scheduleTimerFill || !DOM.scheduleTimerText) return;
+  const runningSeconds = state.scheduleTimerRunning
+    ? Math.floor((Date.now() - state.scheduleSessionStartedAt) / 1000)
+    : 0;
+  const elapsedSeconds = Math.max(0, Math.floor(state.scheduleTimerElapsedSeconds + runningSeconds));
+  const progress = (elapsedSeconds % SCHEDULE_TIMER_CYCLE_SECONDS) / SCHEDULE_TIMER_CYCLE_SECONDS;
+  DOM.scheduleTimerFill.style.width = `${Math.max(2, progress * 100)}%`;
+  DOM.scheduleTimerText.textContent = `Session timer ${formatTimerLabel(elapsedSeconds)}`;
+  if (DOM.scheduleTimerStart) {
+    DOM.scheduleTimerStart.disabled = state.scheduleTimerRunning;
+  }
+  if (DOM.scheduleTimerPause) {
+    DOM.scheduleTimerPause.disabled = !state.scheduleTimerRunning;
+  }
+}
+
+function startScheduleTimer() {
+  if (scheduleTimerId !== null) return;
+  renderScheduleTimer();
+  renderRestTimer();
+  scheduleTimerId = window.setInterval(() => {
+    renderScheduleTimer();
+    const remainingSeconds = getCurrentRestRemainingSeconds();
+    if (state.restTimerRunning && remainingSeconds <= 0) {
+      state.restTimerRemainingSeconds = 0;
+      state.restTimerRunning = false;
+      persistState();
+      renderRestTimer();
+      showScheduleToast('組間休息結束');
+      playRestTimerAlarm();
+      return;
+    }
+    renderRestTimer();
+  }, 1000);
+}
+
+function restartScheduleTimer() {
+  state.scheduleTimerElapsedSeconds = 0;
+  state.scheduleTimerRunning = true;
+  state.scheduleSessionStartedAt = Date.now();
+  persistState();
+  renderScheduleTimer();
+}
+
+async function ensureRestAlarmAudioContext() {
+  const AudioCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtor) return null;
+  if (!restAlarmAudioContext) {
+    restAlarmAudioContext = new AudioCtor();
+  }
+  if (restAlarmAudioContext.state === 'suspended') {
+    await restAlarmAudioContext.resume();
+  }
+  return restAlarmAudioContext;
+}
+
+async function playRestTimerAlarm() {
+  try {
+    stopRestTimerAlarm();
+    const context = await ensureRestAlarmAudioContext();
+    if (!context) return;
+    const playBurst = () => {
+      const now = context.currentTime;
+      const beepOffsets = [0, 0.28, 0.56];
+      beepOffsets.forEach((offset) => {
+        const osc = context.createOscillator();
+        const gain = context.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.value = 0;
+        osc.connect(gain);
+        gain.connect(context.destination);
+        gain.gain.setValueAtTime(0.0001, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.22, now + offset + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.2);
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.22);
+      });
+    };
+
+    playBurst();
+    restAlarmIntervalId = window.setInterval(() => {
+      playBurst();
+    }, REST_ALARM_BURST_INTERVAL_MS);
+    restAlarmStopTimeoutId = window.setTimeout(() => {
+      stopRestTimerAlarm();
+    }, REST_ALARM_DURATION_MS);
+  } catch (error) {
+    console.warn('Failed to play rest timer alarm', error);
+  }
+}
+
+function stopRestTimerAlarm() {
+  if (restAlarmIntervalId !== null) {
+    window.clearInterval(restAlarmIntervalId);
+    restAlarmIntervalId = null;
+  }
+  if (restAlarmStopTimeoutId !== null) {
+    window.clearTimeout(restAlarmStopTimeoutId);
+    restAlarmStopTimeoutId = null;
+  }
+}
+
+function startRestTimerCountdown() {
+  stopRestTimerAlarm();
+  if (state.restTimerRunning) return;
+  const configuredSeconds = getConfiguredRestSeconds();
+  if (configuredSeconds <= 0) return;
+  if (state.restTimerRemainingSeconds <= 0) {
+    state.restTimerRemainingSeconds = configuredSeconds;
+  }
+  state.restTimerRunning = true;
+  state.restTimerStartedAt = Date.now();
+  persistState();
+  renderRestTimer();
+}
+
+function pauseRestTimerCountdown() {
+  stopRestTimerAlarm();
+  if (!state.restTimerRunning) return;
+  state.restTimerRemainingSeconds = getCurrentRestRemainingSeconds();
+  state.restTimerRunning = false;
+  persistState();
+  renderRestTimer();
+}
+
+function syncRestTimerConfigFromInputs() {
+  if (!DOM.restTimerMinutes || !DOM.restTimerSeconds) return;
+  stopRestTimerAlarm();
+  const nextMinutes = Math.max(0, Math.min(99, Number(DOM.restTimerMinutes.value) || 0));
+  const nextSeconds = Math.max(0, Math.min(59, Number(DOM.restTimerSeconds.value) || 0));
+  state.restTimerMinutes = nextMinutes;
+  state.restTimerSeconds = nextSeconds;
+  if (!state.restTimerRunning) {
+    state.restTimerRemainingSeconds = getConfiguredRestSeconds();
+  }
+  persistState();
+  renderRestTimer();
+}
+
+function startScheduleTimerSession() {
+  if (state.scheduleTimerRunning) return;
+  state.scheduleTimerRunning = true;
+  state.scheduleSessionStartedAt = Date.now();
+  persistState();
+  renderScheduleTimer();
+}
+
+function pauseScheduleTimerSession() {
+  if (!state.scheduleTimerRunning) return;
+  const deltaSeconds = Math.max(0, Math.floor((Date.now() - state.scheduleSessionStartedAt) / 1000));
+  state.scheduleTimerElapsedSeconds += deltaSeconds;
+  state.scheduleTimerRunning = false;
+  persistState();
+  renderScheduleTimer();
+}
+
+function showScheduleToast(message) {
+  if (!DOM.scheduleToast) return;
+  if (scheduleToastId !== null) {
+    window.clearTimeout(scheduleToastId);
+  }
+  DOM.scheduleToast.textContent = message;
+  DOM.scheduleToast.classList.add('schedule__toast--visible');
+  scheduleToastId = window.setTimeout(() => {
+    DOM.scheduleToast.classList.remove('schedule__toast--visible');
+  }, TOAST_DURATION_MS);
 }
 
 function setActivePage(page) {
+  if (state.activePage === 'schedule' && page !== 'schedule') {
+    stopRestTimerAlarm();
+  }
   state.activePage = page;
   DOM.pages.forEach((section) => {
     section.classList.toggle('page--active', section.dataset.page === page);
@@ -222,6 +498,7 @@ function setActivePage(page) {
   });
 
   if (page === 'schedule') {
+    restartScheduleTimer();
     focusDate(new Date());
     renderSchedule();
   }
@@ -241,7 +518,6 @@ function setSelectedDate(date) {
 }
 
 function focusDate(date) {
-  state.viewDate = new Date(date.getFullYear(), date.getMonth(), 1);
   setSelectedDate(date);
 }
 
@@ -260,14 +536,15 @@ function updateWeightConversion(value, unit, targetEl) {
 }
 
 function renderCalendar() {
-  const monthName = monthFormatter.format(state.viewDate);
+  const anchorDate = state.selectedDate;
+  const monthName = monthFormatter.format(anchorDate);
   DOM.month.textContent = monthName;
-  DOM.year.textContent = state.viewDate.getFullYear();
+  DOM.year.textContent = anchorDate.getFullYear();
 
   const workoutDays = new Set(state.entries.map((entry) => entry.dateKey));
 
   DOM.days.innerHTML = '';
-  const dates = buildCalendarDates(state.viewDate);
+  const dates = buildFourWeekDates(anchorDate);
   dates.forEach(({ date, outside }) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -283,11 +560,7 @@ function renderCalendar() {
 
     button.innerHTML = `<span>${dayFormatter.format(date)}</span>`;
     button.addEventListener('click', () => {
-      if (outside) {
-        focusDate(date);
-      } else {
-        setSelectedDate(date);
-      }
+      setSelectedDate(date);
     });
     DOM.days.appendChild(button);
   });
@@ -481,7 +754,6 @@ function renderScheduleList() {
         <h3 class="workout-card__title">${displayName}</h3>
         <div class="workout-card__actions">
           <button class="workout-card__copy" type="button">Copy</button>
-          <button class="workout-card__edit" type="button">Edit name</button>
           <button class="workout-card__delete" type="button">Delete</button>
         </div>
       </div>
@@ -529,27 +801,6 @@ function renderScheduleList() {
       duplicateEntry(entry.id);
     });
 
-    card.querySelector('.workout-card__edit').addEventListener('click', () => {
-      const nextName = window.prompt('Exercise name', displayName);
-      if (nextName === null) return;
-      const trimmed = nextName.trim();
-      if (!trimmed) return;
-
-      const linkedExercise = state.exercises.find((item) => item.id === entry.exerciseId);
-      if (linkedExercise) {
-        const renamed = applyExerciseRename(linkedExercise.id, trimmed);
-        if (!renamed) return;
-      } else {
-        entry.exerciseName = trimmed;
-      }
-
-      persistState();
-      renderTaskList();
-      renderScheduleFormOptions();
-      renderScheduleList();
-      renderProgress();
-    });
-
     const fields = card.querySelectorAll('[data-field]');
     fields.forEach((field) => {
       const handler = (event) => {
@@ -593,6 +844,9 @@ function renderScheduleList() {
 
 function renderSchedule() {
   renderScheduleHeader();
+  renderScheduleMemo();
+  renderScheduleTimer();
+  renderRestTimer();
   renderScheduleFormOptions();
   renderScheduleList();
 }
@@ -808,6 +1062,7 @@ function addEntry() {
   renderScheduleList();
   renderCalendar();
   renderProgress();
+  showScheduleToast(`已新增${exercise.name}`);
 }
 
 function duplicateEntry(entryId) {
@@ -828,14 +1083,13 @@ function bindEvents() {
   DOM.calendarButtons.forEach((button) => {
     button.addEventListener('click', () => {
       const action = button.dataset.action;
-      const next = new Date(state.viewDate);
+      const next = new Date(state.selectedDate);
       if (action === 'prev') {
-        next.setMonth(next.getMonth() - 1);
+        next.setDate(next.getDate() - 7);
       } else if (action === 'next') {
-        next.setMonth(next.getMonth() + 1);
+        next.setDate(next.getDate() + 7);
       }
-      state.viewDate = new Date(next.getFullYear(), next.getMonth(), 1);
-      renderCalendar();
+      setSelectedDate(next);
     });
   });
 
@@ -873,6 +1127,50 @@ function bindEvents() {
     addEntry();
   });
 
+  if (DOM.recordSettingsMemo) {
+    DOM.recordSettingsMemo.addEventListener('input', (event) => {
+      state.recordMemo = event.target.value;
+      persistState();
+    });
+  }
+
+  if (DOM.scheduleTimerStart) {
+    DOM.scheduleTimerStart.addEventListener('click', () => {
+      startScheduleTimerSession();
+    });
+  }
+
+  if (DOM.scheduleTimerPause) {
+    DOM.scheduleTimerPause.addEventListener('click', () => {
+      pauseScheduleTimerSession();
+    });
+  }
+
+  if (DOM.restTimerStart) {
+    DOM.restTimerStart.addEventListener('click', async () => {
+      await ensureRestAlarmAudioContext();
+      startRestTimerCountdown();
+    });
+  }
+
+  if (DOM.restTimerPause) {
+    DOM.restTimerPause.addEventListener('click', () => {
+      pauseRestTimerCountdown();
+    });
+  }
+
+  if (DOM.restTimerMinutes) {
+    DOM.restTimerMinutes.addEventListener('input', () => {
+      syncRestTimerConfigFromInputs();
+    });
+  }
+
+  if (DOM.restTimerSeconds) {
+    DOM.restTimerSeconds.addEventListener('input', () => {
+      syncRestTimerConfigFromInputs();
+    });
+  }
+
   if (DOM.exerciseSearch) {
     DOM.exerciseSearch.addEventListener('input', () => {
       renderScheduleFormOptions();
@@ -908,6 +1206,7 @@ loadState();
 seedPresetExercises();
 renderCategorySelect(DOM.taskCategory);
 renderCategorySelect(DOM.exerciseCategoryFilter, { includeAll: true });
+startScheduleTimer();
 renderCalendar();
 renderSchedule();
 renderTaskList();

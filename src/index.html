@@ -6,7 +6,7 @@
     <title>Workout Calendar</title>
     <meta name="theme-color" content="#0f172a" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=20260206" />
+    <link rel="stylesheet" href="styles.css?v=20260218" />
   </head>
   <body>
     <main class="app" id="app-root">
@@ -86,6 +86,38 @@
         <section class="page" data-page="schedule">
           <div class="page__inner">
             <section class="schedule panel" aria-live="polite">
+              <div class="schedule__timer" aria-label="Workout session timer">
+                <div class="schedule__timer-bar">
+                  <div class="schedule__timer-fill" id="schedule-timer-fill"></div>
+                </div>
+                <p class="schedule__timer-text" id="schedule-timer-text">Session timer 00:00</p>
+                <div class="schedule__timer-actions">
+                  <button type="button" class="schedule__timer-btn schedule__timer-btn--start" id="schedule-timer-start">
+                    Start
+                  </button>
+                  <button type="button" class="schedule__timer-btn schedule__timer-btn--pause" id="schedule-timer-pause">
+                    Pause
+                  </button>
+                </div>
+              </div>
+              <div class="schedule__rest-timer" aria-label="Rest countdown timer">
+                <p class="schedule__rest-title">Rest Timer</p>
+                <div class="schedule__rest-controls">
+                  <label class="schedule__rest-label" for="rest-timer-minutes">Min</label>
+                  <input id="rest-timer-minutes" class="schedule__rest-input" type="number" min="0" max="99" value="1" />
+                  <label class="schedule__rest-label" for="rest-timer-seconds">Sec</label>
+                  <input id="rest-timer-seconds" class="schedule__rest-input" type="number" min="0" max="59" value="30" />
+                </div>
+                <p class="schedule__rest-time" id="rest-timer-display">01:30</p>
+                <div class="schedule__rest-actions">
+                  <button type="button" class="schedule__timer-btn schedule__timer-btn--start" id="rest-timer-start">
+                    Start
+                  </button>
+                  <button type="button" class="schedule__timer-btn schedule__timer-btn--pause" id="rest-timer-pause">
+                    Pause
+                  </button>
+                </div>
+              </div>
               <header class="schedule__header">
                 <div>
                   <p class="schedule__label">Workout Schedule</p>
@@ -111,7 +143,17 @@
                   <button type="submit" class="schedule__submit">Add Entry</button>
                   <span id="schedule-hint" class="schedule__hint"></span>
                 </div>
+                <div class="schedule__memo">
+                  <label class="schedule__form-label" for="record-settings-memo">Setting for my record</label>
+                  <textarea
+                    id="record-settings-memo"
+                    class="schedule__memo-input"
+                    rows="3"
+                    placeholder="記錄你今天的訓練備忘、節奏或注意事項..."
+                  ></textarea>
+                </div>
               </form>
+              <div id="schedule-toast" class="schedule__toast" role="status" aria-live="polite"></div>
               <div class="schedule__list" id="schedule-list"></div>
             </section>
           </div>
@@ -153,6 +195,6 @@
         <button class="bottom-nav__item" type="button" data-page="progress">Progress</button>
       </nav>
     </main>
-    <script src="main.js?v=20260206" type="module"></script>
+    <script src="main.js?v=20260218" type="module"></script>
   </body>
 </html>

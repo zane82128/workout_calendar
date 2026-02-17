@@ -12,10 +12,16 @@
 - **Event Block 可編輯**：每筆紀錄可調整日期、重量、次數、組數，並可直接複製整筆 detail。
 - **備註欄位**：每筆 Workout Entry Card 皆可填寫 note（例如休息秒數、當下狀態）。
 - **Schedule 日期保護**：每次進入 Schedule 會自動回到今天，降低記錄到錯日期的風險。
+- **Schedule Session Timer**：Schedule 頂部新增 timer bar，顯示本次訓練經過時間。
+- **組間休息倒數 Timer**：Session Timer 下方新增 Rest Timer，可設定 `mins/secs` 並進行倒數。
+- **休息結束提醒鈴聲**：Rest Timer 倒數到 0 時觸發鈴聲並持續 1 分鐘（使用 Web Audio API，走瀏覽器音訊輸出，可透過耳機播放）；可按 `Pause` 提前關閉鈴聲。
+- **Record Memo**：`Setting for my record` 提供獨立備忘錄並持久化儲存。
+- **Add Entry 提示**：新增訓練後會顯示「已新增xxx」小視窗。
 - **Progress 折線圖**：可選特定動作，依「日/月」統計總容量（重量*次數*組數）並顯示趨勢。
 - **重量單位切換**：提供 `kg / lb`，當使用 `lb` 時同步顯示換算後的 `kg`。
 - **本地端儲存**：資料全存 `localStorage`，不需要登入或雲端。
 - **日曆高亮**：Home 月曆中有訓練紀錄的日期會整塊以橘色標示，並提供有/無紀錄圖例。
+- **Home 四週視窗**：Month Grid 固定顯示「前兩週 + 本週 + 下週」共四週。
 
 ## 專案結構
 
@@ -49,11 +55,20 @@ workout_calendar/
 - `Exercise Search Input`
 - `Exercise Select`
 - `Add Entry Button`
+- `Record Settings Memo`
+- `Session Timer Bar`
+- `Session Timer Start Button`
+- `Session Timer Pause Button`
+- `Rest Timer`
+- `Rest Timer Minutes Input`
+- `Rest Timer Seconds Input`
+- `Rest Timer Start Button`
+- `Rest Timer Pause Button`
+- `Add Entry Toast`
 - `Workout Entry List`
 - `Workout Entry Card`
 - `Entry Title`
 - `Entry Category Label`
-- `Entry Edit Name Button`
 - `Entry Copy Button`
 - `Entry Delete Button`
 - `Entry Date Input`
@@ -80,6 +95,13 @@ workout_calendar/
   - `exercises`: `[ { id, name, category, createdAt } ]`
   - `entries`: `[ { id, dateKey, exerciseId, exerciseName, exerciseCategory, weight, unit, reps, sets, note, createdAt } ]`
   - `presetVersionApplied`: 已套用的預設動作版本
+  - `recordMemo`: Schedule 的 `Setting for my record` 內容
+  - `scheduleSessionStartedAt`: Schedule timer 的 session 起始時間
+  - `restTimerMinutes`: Rest Timer 設定分鐘數
+  - `restTimerSeconds`: Rest Timer 設定秒數
+  - `restTimerRemainingSeconds`: Rest Timer 目前剩餘秒數
+  - `restTimerRunning`: Rest Timer 是否正在倒數
+  - `restTimerStartedAt`: Rest Timer 當前倒數起始時間
   - `selectedDate`: 使用者最後瀏覽的日期
 
 ## 預設動作清單
