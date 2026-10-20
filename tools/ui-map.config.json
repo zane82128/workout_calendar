@@ -1,84 +1,45 @@
 {
-  "viewport": { "width": 1000, "height": 900 },
+  "viewport": { "width": 1000, "height": 1100 },
   "commonElements": [
-    { "label": "App > Updates > Current Version", "selector": "#app-version" },
-    { "label": "App > Updates > Check Update Button", "selector": "#check-update" },
-    { "label": "App > Updates > Update Status", "selector": "#update-status" },
-    { "label": "App > Updates > Apply Update Button", "selector": "#apply-update" },
-    { "label": "App > Updates > Defer Update Button", "selector": "#defer-update" }
+    { "label": "App > Navigation > Record Tab", "selector": "#record-tab" },
+    { "label": "App > Navigation > Tasks Tab", "selector": "#tasks-tab" },
+    { "label": "App > Updates > Panel", "selector": "#update-panel" }
   ],
   "pages": [
     {
-      "name": "home",
-      "title": "Home Page Component Map",
-      "activate": "button.bottom-nav__item[data-page='home']",
+      "name": "record", "title": "Record Page Component Map", "activate": "#record-tab", "open": ["#rest-panel"],
       "elements": [
-        { "label": "Calendar Nav", "selector": ".calendar__nav" },
+        { "label": "Header Date Picker", "selector": "#schedule-date-input" },
+        { "label": "Exercise Select", "selector": "#exercise-select" },
+        { "label": "Record > Comparison > Previous Weight", "selector": "#last-weight" },
+        { "label": "Record > Comparison > Highest Weight", "selector": "#highest-weight" },
+        { "label": "Record > Comparison > Current Day Weight", "selector": "#current-weight" },
+        { "label": "Entry Weight Input", "selector": "#entry-weight" },
+        { "label": "Record > Entry > Complete Button", "selector": "#complete-button" },
+        { "label": "Workout Entry List", "selector": "#completed-list" },
+        { "label": "Record > History > Legacy Records", "selector": "#legacy-section" },
+        { "label": "Rest Timer", "selector": "#rest-panel" },
+        { "label": "Rest Timer Minutes Input", "selector": "#rest-timer-minutes" },
+        { "label": "Rest Timer Seconds Input", "selector": "#rest-timer-seconds" }
+      ]
+    },
+    {
+      "name": "calendar", "title": "Record Calendar Component Map", "activate": "#record-tab", "open": ["#calendar-panel"],
+      "elements": [
+        { "label": "Calendar Nav", "selector": ".calendar-nav" },
         { "label": "Today Button", "selector": "#go-today" },
         { "label": "Month Grid", "selector": "#calendar-days" },
-        { "label": "Date Cell (Workout Highlight)", "selector": "#calendar-days .calendar__day--workout" },
-        { "label": "Calendar Legend", "selector": ".calendar__legend" },
-        { "label": "Selected Date Summary", "selector": ".calendar__summary" },
-        { "label": "Open Schedule Button", "selector": "#open-schedule" }
+        { "label": "Calendar Legend", "selector": ".legend" }
       ]
     },
     {
-      "name": "task",
-      "title": "Tasks Page Component Map",
-      "activate": "button.bottom-nav__item[data-page='tasks']",
+      "name": "task", "title": "Tasks Page Component Map", "activate": "#tasks-tab", "open": ["#archived-panel"],
       "elements": [
-        { "label": "Task Header", "selector": ".task-panel__header" },
         { "label": "Task Input", "selector": "#task-input" },
         { "label": "Task Category Select", "selector": "#task-category" },
-        { "label": "Task Add Button", "selector": "#task-form .task-panel__submit" },
+        { "label": "Task Add Button", "selector": "#task-form button" },
         { "label": "Task List", "selector": "#task-list" },
-        { "label": "Task Item Card", "selector": "#task-list .task-item" },
-        { "label": "Task Edit Button", "selector": "#task-list .task-item .task-item__edit" },
-        { "label": "Task Delete Button", "selector": "#task-list .task-item .task-item__delete" },
-        { "label": "Bottom Nav", "selector": ".bottom-nav" }
-      ]
-    },
-    {
-      "name": "schedule",
-      "title": "Schedule Page Component Map",
-      "activate": "button.bottom-nav__item[data-page='schedule']",
-      "elements": [
-        { "label": "Session Timer Bar", "selector": ".schedule__timer-bar" },
-        { "label": "Session Timer Start Button", "selector": "#schedule-timer-start" },
-        { "label": "Session Timer Pause Button", "selector": "#schedule-timer-pause" },
-        { "label": "Rest Timer", "selector": ".schedule__rest-timer" },
-        { "label": "Rest Timer Minutes Input", "selector": "#rest-timer-minutes" },
-        { "label": "Rest Timer Seconds Input", "selector": "#rest-timer-seconds" },
-        { "label": "Rest Timer Start Button", "selector": "#rest-timer-start" },
-        { "label": "Rest Timer Pause Button", "selector": "#rest-timer-pause" },
-        { "label": "Header Date Picker", "selector": "#schedule-date-input" },
-        { "label": "Exercise Category Filter", "selector": "#exercise-category-filter" },
-        { "label": "Exercise Search Input", "selector": "#exercise-search" },
-        { "label": "Exercise Select", "selector": "#exercise-select" },
-        { "label": "Add Entry Button", "selector": "#schedule-form .schedule__submit" },
-        { "label": "Record Settings Memo", "selector": "#record-settings-memo" },
-        { "label": "Add Entry Toast", "selector": "#schedule-toast" },
-        { "label": "Workout Entry Card", "selector": "#schedule-list .workout-card" },
-        { "label": "Entry Copy Button", "selector": "#schedule-list .workout-card .workout-card__copy" },
-        { "label": "Entry Delete Button", "selector": "#schedule-list .workout-card .workout-card__delete" },
-        { "label": "Entry Date Input", "selector": "#schedule-list .workout-card [data-field='dateKey']" },
-        { "label": "Entry Weight Input", "selector": "#schedule-list .workout-card [data-field='weight']" },
-        { "label": "Entry Unit Select", "selector": "#schedule-list .workout-card [data-field='unit']" },
-        { "label": "Entry Reps Input", "selector": "#schedule-list .workout-card [data-field='reps']" },
-        { "label": "Entry Sets Input", "selector": "#schedule-list .workout-card [data-field='sets']" },
-        { "label": "Entry Note Input", "selector": "#schedule-list .workout-card [data-field='note']" }
-      ]
-    },
-    {
-      "name": "progress",
-      "title": "Progress Page Component Map",
-      "activate": "button.bottom-nav__item[data-page='progress']",
-      "elements": [
-        { "label": "Progress Header", "selector": ".progress__header" },
-        { "label": "Progress Exercise Select", "selector": "#progress-exercise" },
-        { "label": "Progress Granularity Select", "selector": "#progress-granularity" },
-        { "label": "Progress Chart Canvas", "selector": "#progress-chart" },
-        { "label": "Progress Summary", "selector": "#progress-summary" }
+        { "label": "Tasks > Archive > List", "selector": "#archived-list" }
       ]
     }
   ]

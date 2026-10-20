@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { dateKey } from '../src/records.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -57,9 +58,11 @@ function startStaticServer(port = 5179) {
 }
 
 function seedLocalState() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dateKey();
   const iso = new Date().toISOString();
   return {
+    schemaVersion: 2,
+    completedEntries: [{ id: 'completed-1', exerciseId: 'ex-2', exerciseName: '平板臥推', exerciseCategory: '胸', dateKey: today, weight: 40, unit: 'kg', createdAt: iso }],
     exercises: [
       { id: 'ex-1', name: '三頭下壓', category: '手臂', createdAt: iso },
       { id: 'ex-2', name: '平板臥推', category: '胸', createdAt: iso },
@@ -164,7 +167,7 @@ async function generate() {
   const browser = await chromium.launch({ headless: true });
 
   try {
-    const context = await browser.newContext({ viewport: config.viewport, deviceScaleFactor: 1 });
+    const context = await browser.newContext({ viewport: config.viewport, deviceScaleFactor: 1, timezoneId: 'Asia/Taipei' });
     await context.addInitScript((data) => {
       localStorage.setItem('workoutCalendar.v1', JSON.stringify(data));
     }, seedLocalState());
@@ -176,6 +179,10 @@ async function generate() {
       if (pageMap.activate) {
         await page.click(pageMap.activate);
       }
+      await page.evaluate((selectors) => {
+        document.querySelectorAll('details').forEach((element) => { element.open = false; });
+        for (const selector of selectors) document.querySelector(selector).open = true;
+      }, pageMap.open || []);
       await page.waitForTimeout(250);
       await page.evaluate(() => window.scrollTo(0, 0));
       await removeOverlay(page);

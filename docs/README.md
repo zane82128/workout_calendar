@@ -10,6 +10,7 @@
 | 如何更新、發布、安裝及回復 | [發版 SOP](release/sop.md) |
 | 之前實際驗證過什麼 | [2026-10-19 本地驗收](validation/2026-10-19.md) |
 | 這次 repo 整理的驗收 | [2026-10-20 repo 整理](validation/2026-10-20-repo.md) |
+| 兩頁重量紀錄改版及試用步驟 | [2026-10-20 重量紀錄驗收](validation/2026-10-20-weight-records.md) |
 | 如何稱呼 UI 元件、產生標註圖 | [UI 元件規範](architecture/ui-components.md) |
 | 查閱過往開發脈絡 | [歷史開發日誌](archive/development-log.md) |
 

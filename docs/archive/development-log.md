@@ -4,6 +4,12 @@
 
 ## 2026-10-20：repo 分類整理
 
+### 同日後續：重量紀錄正式接線
+
+- 實作兩頁 UI 與完成最高重量規則，新增 records、storage、rest-timer 模組；保留舊只讀紀錄、退休欄位及本地原始備份。
+- 新增資料規則及產品測試，升級測試保留原目的並適配新 UI，再增加舊四頁至本版的遷移／草稿案例。
+- 完整試用與限制見 [重量紀錄驗收](../validation/2026-10-20-weight-records.md)。本次未 commit、push 或部署。
+
 - 現行文件依產品、架構、決策、發版、驗收分類；測試移至 tests/update.test.mjs，更新 npm 與發版工具引用。
 - 刪除過時 guide.md、execution_plan.md；部署操作整合至 docs/release/sop.md 後刪除 github_pages_pwa_steps.md。
 - 補記已確認的單裝置、每動作完成最高重量與上次／最高比較方向，尚未改 App 功能或資料格式。

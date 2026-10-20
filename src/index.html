@@ -1,208 +1,56 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="zh-Hant">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Workout Calendar</title>
-    <meta name="theme-color" content="#0f172a" />
-    <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="styles.css?v=20260218" />
+    <meta name="theme-color" content="#303940">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <main class="app" id="app-root">
-      <div class="app__content">
-        <section class="page page--active" data-page="home">
-          <div class="page__inner">
-            <section class="calendar panel">
-              <header class="calendar__header">
-                <div class="calendar__nav">
-                  <button class="calendar__btn" data-action="prev" aria-label="Previous month">&#8249;</button>
-                  <div class="calendar__title">
-                    <h1 id="calendar-month"></h1>
-                    <p id="calendar-year"></p>
-                  </div>
-                  <button class="calendar__btn" data-action="next" aria-label="Next month">&#8250;</button>
-                </div>
-                <div class="calendar__meta">
-                  <button class="calendar__btn calendar__btn--today" type="button" id="go-today">Today</button>
-                </div>
-              </header>
-              <div class="calendar__grid">
-                <div class="calendar__weekdays" aria-hidden="true">
-                  <span>Sun</span>
-                  <span>Mon</span>
-                  <span>Tue</span>
-                  <span>Wed</span>
-                  <span>Thu</span>
-                  <span>Fri</span>
-                  <span>Sat</span>
-                </div>
-                <div id="calendar-days" class="calendar__days" role="grid" aria-labelledby="calendar-month"></div>
-              </div>
-              <div class="calendar__legend" aria-label="Workout legend">
-                <div class="calendar__legend-item">
-                  <span class="calendar__legend-swatch calendar__legend-swatch--workout"></span>
-                  <span>有紀錄</span>
-                </div>
-                <div class="calendar__legend-item">
-                  <span class="calendar__legend-swatch calendar__legend-swatch--empty"></span>
-                  <span>無紀錄</span>
-                </div>
-              </div>
-              <div class="calendar__summary">
-                <div>
-                  <p class="calendar__summary-label">Selected date</p>
-                  <h2 id="selected-date" class="calendar__summary-date"></h2>
-                  <p id="selected-weekday" class="calendar__summary-weekday"></p>
-                </div>
-                <button class="calendar__btn" type="button" id="open-schedule">Open Schedule</button>
-              </div>
-            </section>
-          </div>
-        </section>
-        <section class="page" data-page="tasks">
-          <div class="page__inner">
-            <section class="task-panel panel" aria-live="polite">
-              <header class="task-panel__header">
-                <p class="task-panel__title">Training List</p>
-                <p class="task-panel__subtitle">Add your exercise here first before your schedule begin!</p>
-              </header>
-              <form class="task-panel__form" id="task-form">
-                <input
-                  id="task-input"
-                  type="text"
-                  class="task-panel__input"
-                  placeholder="e.g. Squat, Bench Press"
-                  autocomplete="off"
-                  required
-                />
-                <select id="task-category" class="task-panel__select"></select>
-                <button type="submit" class="task-panel__submit">Add</button>
-              </form>
-              <div class="task-panel__list" id="task-list" role="list"></div>
-            </section>
-          </div>
-        </section>
-        <section class="page" data-page="schedule">
-          <div class="page__inner">
-            <section class="schedule panel" aria-live="polite">
-              <div class="schedule__timer" aria-label="Workout session timer">
-                <div class="schedule__timer-bar">
-                  <div class="schedule__timer-fill" id="schedule-timer-fill"></div>
-                </div>
-                <p class="schedule__timer-text" id="schedule-timer-text">Session timer 00:00</p>
-                <div class="schedule__timer-actions">
-                  <button type="button" class="schedule__timer-btn schedule__timer-btn--start" id="schedule-timer-start">
-                    Start
-                  </button>
-                  <button type="button" class="schedule__timer-btn schedule__timer-btn--pause" id="schedule-timer-pause">
-                    Pause
-                  </button>
-                </div>
-              </div>
-              <div class="schedule__rest-timer" aria-label="Rest countdown timer">
-                <p class="schedule__rest-title">Rest Timer</p>
-                <div class="schedule__rest-controls">
-                  <label class="schedule__rest-label" for="rest-timer-minutes">Min</label>
-                  <input id="rest-timer-minutes" class="schedule__rest-input" type="number" min="0" max="99" value="1" />
-                  <label class="schedule__rest-label" for="rest-timer-seconds">Sec</label>
-                  <input id="rest-timer-seconds" class="schedule__rest-input" type="number" min="0" max="59" value="30" />
-                </div>
-                <p class="schedule__rest-time" id="rest-timer-display">01:30</p>
-                <div class="schedule__rest-actions">
-                  <button type="button" class="schedule__timer-btn schedule__timer-btn--start" id="rest-timer-start">
-                    Start
-                  </button>
-                  <button type="button" class="schedule__timer-btn schedule__timer-btn--pause" id="rest-timer-pause">
-                    Pause
-                  </button>
-                </div>
-              </div>
-              <header class="schedule__header">
-                <div>
-                  <p class="schedule__label">Workout Schedule</p>
-                  <h2 id="schedule-date"></h2>
-                  <p id="schedule-weekday" class="schedule__weekday"></p>
-                </div>
-                <input id="schedule-date-input" type="date" class="schedule__date-input" />
-              </header>
-              <form class="schedule__form" id="schedule-form">
-                <div class="schedule__form-row">
-                  <label class="schedule__form-label" for="exercise-select">Exercise</label>
-                  <select id="exercise-category-filter" class="schedule__select"></select>
-                  <input
-                    id="exercise-search"
-                    type="text"
-                    class="schedule__input"
-                    placeholder="Search exercise..."
-                    autocomplete="off"
-                  />
-                  <select id="exercise-select" class="schedule__select"></select>
-                </div>
-                <div class="schedule__form-actions">
-                  <button type="submit" class="schedule__submit">Add Entry</button>
-                  <span id="schedule-hint" class="schedule__hint"></span>
-                </div>
-                <div class="schedule__memo">
-                  <label class="schedule__form-label" for="record-settings-memo">Setting for my record</label>
-                  <textarea
-                    id="record-settings-memo"
-                    class="schedule__memo-input"
-                    rows="3"
-                    placeholder="記錄你今天的訓練備忘、節奏或注意事項..."
-                  ></textarea>
-                </div>
-              </form>
-              <div id="schedule-toast" class="schedule__toast" role="status" aria-live="polite"></div>
-              <div class="schedule__list" id="schedule-list"></div>
-            </section>
-          </div>
-        </section>
-        <section class="page" data-page="progress">
-          <div class="page__inner">
-            <section class="progress panel" aria-live="polite">
-              <header class="progress__header">
-                <div>
-                  <p class="progress__label">Progress</p>
-                  <h2>Volume Trend</h2>
-                </div>
-              </header>
-              <div class="progress__controls">
-                <div class="progress__control">
-                  <label for="progress-exercise">Exercise</label>
-                  <select id="progress-exercise" class="schedule__select"></select>
-                </div>
-                <div class="progress__control">
-                  <label for="progress-granularity">X axis</label>
-                  <select id="progress-granularity" class="schedule__select">
-                    <option value="day">Day</option>
-                    <option value="month">Month</option>
-                  </select>
-                </div>
-              </div>
-              <div class="progress__chart-wrap">
-                <canvas id="progress-chart" class="progress__chart" width="900" height="320"></canvas>
-              </div>
-              <p id="progress-summary" class="progress__summary"></p>
-            </section>
-          </div>
-        </section>
-      </div>
-      <nav class="bottom-nav" aria-label="Primary">
-        <button class="bottom-nav__item is-active" type="button" data-page="home">Home</button>
-        <button class="bottom-nav__item" type="button" data-page="tasks">Tasks</button>
-        <button class="bottom-nav__item" type="button" data-page="schedule">Schedule</button>
-        <button class="bottom-nav__item" type="button" data-page="progress">Progress</button>
+    <div class="app" id="app-root">
+      <header><h1>Workout Calendar</h1></header>
+      <nav role="tablist" aria-label="主要功能">
+        <button type="button" id="record-tab" role="tab" data-page="record" aria-selected="true" aria-controls="record-page">紀錄</button>
+        <button type="button" id="tasks-tab" role="tab" data-page="tasks" aria-selected="false" aria-controls="tasks-page">動作管理</button>
       </nav>
-    </main>
-    <footer class="app-update" aria-label="App 版本與更新">
-      <span id="app-version"></span>
-      <button type="button" id="check-update">檢查更新</button>
-      <p id="update-status" role="status" aria-live="polite"></p>
-      <p id="update-note" hidden>更新將重新載入畫面，輸入內容與計時會保留。</p>
-      <button type="button" id="apply-update" hidden>立即更新</button>
-      <button type="button" id="defer-update" hidden>稍後</button>
-    </footer>
+      <div id="app-error" role="alert" hidden><span id="error-text"></span><button type="button" id="retry-storage">重試讀取</button></div>
+      <main>
+        <section id="record-page" role="tabpanel" aria-labelledby="record-tab">
+          <div class="row date-row"><h2 id="date-title">今天</h2><input id="schedule-date-input" type="date" aria-label="訓練日期" required></div>
+          <details id="calendar-panel">
+            <summary>日曆</summary>
+            <div class="row calendar-nav"><button type="button" id="calendar-prev" aria-label="上一週">‹</button><span id="calendar-month"></span><button type="button" id="go-today">今天</button><button type="button" id="calendar-next" aria-label="下一週">›</button></div>
+            <div class="weekdays" aria-hidden="true"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+            <div id="calendar-days" class="calendar-days" aria-label="四週日曆"></div>
+            <p class="muted legend"><span>● 已完成（橘）</span><span>▰ 舊紀錄（灰）</span></p>
+          </details>
+          <section class="section" aria-label="記錄重量">
+            <label for="exercise-select">動作</label><select id="exercise-select"></select>
+            <details id="filter-panel"><summary class="muted">篩選動作</summary><label for="exercise-category-filter">分類</label><select id="exercise-category-filter"></select><label for="exercise-search">搜尋</label><input id="exercise-search" type="search" placeholder="動作名稱"></details>
+            <div class="comparison"><div><span class="muted">上次</span><strong id="last-weight">尚無紀錄</strong><span class="muted" id="last-date"></span></div><div><span class="muted">歷史最高</span><strong id="highest-weight">尚無紀錄</strong></div></div>
+            <p id="current-weight" class="current-weight">當天最高：—</p>
+            <label for="entry-weight">本次重量</label>
+            <form id="complete-form" class="weight-row" novalidate><input id="entry-weight" type="number" min="0" step="any" inputmode="decimal" placeholder="徒手填 0" aria-label="本次實際完成最高重量 kg" required><span>kg</span><button type="submit" class="primary" id="complete-button">完成</button></form>
+            <p id="entry-error" role="alert" class="error" hidden></p>
+          </section>
+          <section class="section" aria-label="所選日期紀錄"><h2>已完成</h2><div id="completed-list"></div></section>
+          <section class="section" id="legacy-section" hidden><h2>舊版紀錄 · 只供查閱</h2><div id="legacy-list"></div><p class="muted">不納入上次與歷史最高比較</p></section>
+          <details class="section" id="rest-panel"><summary>休息倒數</summary>
+            <div class="timer-settings"><label for="rest-timer-minutes">分<input id="rest-timer-minutes" type="number" min="0" max="99" step="1" value="1"></label><label for="rest-timer-seconds">秒<input id="rest-timer-seconds" type="number" min="0" max="59" step="1" value="30"></label><output id="rest-timer-display" aria-label="休息剩餘時間">01:30</output></div>
+            <div class="row actions"><button type="button" id="rest-timer-start">開始</button><button type="button" id="rest-timer-pause" disabled>暫停</button></div>
+          </details>
+        </section>
+        <section id="tasks-page" role="tabpanel" aria-labelledby="tasks-tab" hidden>
+          <h2>我的動作</h2><form id="task-form" novalidate><label for="task-input">新增動作</label><input id="task-input" required autocomplete="off" placeholder="動作名稱"><div class="row actions"><label class="grow" for="task-category">分類<select id="task-category"></select></label><button type="submit" class="primary">新增</button></div></form>
+          <p id="task-error" role="alert" class="error" hidden></p><div id="task-list" class="section"></div>
+          <details id="archived-panel"><summary>已封存的動作</summary><div id="archived-list"></div></details>
+        </section>
+      </main>
+    </div>
+    <footer class="app-update" aria-label="版本與更新"><details id="update-panel"><summary>版本與更新</summary><span id="app-version"></span><button type="button" id="check-update">檢查更新</button><p id="update-status" role="status" aria-live="polite"></p><p id="update-note" hidden>更新會保留輸入與計時。</p><button type="button" id="apply-update" hidden>立即更新</button><button type="button" id="defer-update" hidden>稍後</button></details></footer>
+    <div id="completion-toast" class="toast" role="status" aria-live="polite" hidden></div>
     <script src="main.js" type="module"></script>
   </body>
 </html>

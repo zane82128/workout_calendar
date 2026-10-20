@@ -23,5 +23,5 @@ jobs:
         if: always()
         with:
           name: update-test-results
-          path: .release-tests/results.json
+          path: .release-tests/*results.json
           include-hidden-files: true

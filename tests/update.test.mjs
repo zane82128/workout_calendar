@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { build } from 'esbuild';
 import path from 'node:path';
 import { chromium } from 'playwright';
-import { buildRelease, root, config, git } from '../tools/build.mjs';
+import { buildRelease, root, config, git, hash } from '../tools/build.mjs';
 import { checkRelease } from '../tools/check-release.mjs';
 import { startServer } from '../tools/preview.mjs';
 
@@ -32,6 +33,7 @@ async function install(ctx, output = A.output) {
   return page;
 }
 async function ready(page) {
+  await page.locator('#update-panel').evaluate((e) => e.open = true);
   await page.locator('#check-update').click();
   await page.waitForFunction(() => !document.getElementById('apply-update').hidden, null, { timeout: 20000 });
 }
@@ -61,7 +63,8 @@ try {
     await ctx.setOffline(true);
     await page.reload();
     await version(page, candidate.releaseId);
-    await page.locator('#check-update').click();
+    await page.locator('#update-panel').evaluate((e) => e.open = true);
+  await page.locator('#check-update').click();
     await page.waitForFunction(() => document.getElementById('update-status').textContent.includes('離線'));
     assert((await page.evaluate(() => caches.keys())).includes('another-app-cache'));
   });
@@ -69,13 +72,11 @@ try {
   await test('A → B、稍後、輸入與日期／計時保留、無重整迴圈', async () => {
     const ctx = await context();
     const page = await install(ctx);
-    await page.click('[data-page="schedule"].bottom-nav__item');
     await page.fill('#schedule-date-input', '2026-10-01');
     await page.locator('#schedule-date-input').dispatchEvent('change');
-    await page.fill('#record-settings-memo', '更新後必須保留的備忘錄');
-    await page.click('#schedule-form button[type="submit"]');
-    await page.fill('[data-field="weight"]', '42.5');
-    await page.fill('[data-field="note"]', '保留此訓練紀錄');
+    await page.fill('#entry-weight', '42.5');
+    await page.click('#complete-button');
+    await page.fill('#entry-weight', '77.5');
     const before = await page.evaluate(() => JSON.parse(localStorage.getItem('workoutCalendar.v1')));
     serving = B.output;
     await ready(page);
@@ -87,10 +88,10 @@ try {
     await page.click('#apply-update');
     await version(page, candidate.releaseId);
     assert.equal(await page.inputValue('#schedule-date-input'), '2026-10-01');
-    assert.equal(await page.inputValue('#record-settings-memo'), before.recordMemo);
-    assert.equal(await page.inputValue('[data-field="note"]'), '保留此訓練紀錄');
+    assert.equal(await page.inputValue('#entry-weight'), '77.5');
     const after = await page.evaluate(() => JSON.parse(localStorage.getItem('workoutCalendar.v1')));
     assert.deepEqual(after.entries, before.entries);
+    assert.deepEqual(after.completedEntries, before.completedEntries);
     assert.deepEqual(after.exercises, before.exercises);
     assert.equal(after.scheduleSessionStartedAt, before.scheduleSessionStartedAt);
     await page.reload();
@@ -107,6 +108,7 @@ try {
     const page = await install(ctx);
     serving = B.output;
     missingFile = 'icons/calendar-icon.svg';
+    await page.locator('#update-panel').evaluate((e) => e.open = true);
     await page.click('#check-update');
     await page.waitForFunction(() => document.getElementById('update-status').textContent.includes('失敗'), null, { timeout: 20000 });
     assert(await page.locator('#apply-update').isHidden());
@@ -121,22 +123,22 @@ try {
   await test('新動作與編輯中草稿保留', async () => {
     const ctx = await context();
     const page = await install(ctx);
-    await page.click('[data-page="tasks"].bottom-nav__item');
+    await page.click('#tasks-tab');
     await page.fill('#task-input', '尚未送出的動作');
-    await page.locator('.task-item__edit').first().click();
-    await page.fill('.task-item__edit-input', '尚未儲存的名稱');
+    await page.locator('#task-list button:text-is("改名")').first().click();
+    await page.fill('#task-edit-name', '尚未儲存的名稱');
     serving = B.output;
     await ready(page);
     await page.click('#apply-update');
     await version(page, candidate.releaseId);
     assert.equal(await page.inputValue('#task-input'), '尚未送出的動作');
-    assert.equal(await page.inputValue('.task-item__edit-input'), '尚未儲存的名稱');
+    assert.equal(await page.inputValue('#task-edit-name'), '尚未儲存的名稱');
   });
 
   await test('運行中的休息計時跨更新保留，結束只處理一次', async () => {
     const ctx = await context();
     const page = await install(ctx);
-    await page.click('[data-page="schedule"].bottom-nav__item');
+    await page.locator('#rest-panel summary').click();
     await page.fill('#rest-timer-minutes', '0');
     await page.fill('#rest-timer-seconds', '3');
     await page.click('#rest-timer-start');
@@ -150,7 +152,7 @@ try {
     await page.reload();
     await version(page, candidate.releaseId);
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('workoutCalendar.v1')).restTimerRemainingSeconds), 0);
-    assert(!await page.evaluate(() => document.getElementById('schedule-toast').textContent.includes('休息結束')));
+    assert(!await page.evaluate(() => document.getElementById('completion-toast').textContent.includes('休息結束')));
   });
 
   await test('自動檢查五分鐘節流，手動檢查可略過', async () => {
@@ -160,6 +162,7 @@ try {
     let requests = 0;
     page.on('request', (request) => { if (request.url().endsWith('version.json')) requests++; });
     await page.evaluate(() => { window.dispatchEvent(new Event('online')); document.dispatchEvent(new Event('visibilitychange')); });
+    await page.locator('#update-panel').evaluate((e) => e.open = true);
     await page.click('#check-update');
     await page.waitForFunction(() => !document.getElementById('check-update').disabled);
     assert.equal(requests, 1);
@@ -188,7 +191,7 @@ try {
     const first = await install(ctx);
     const second = await ctx.newPage();
     await second.goto(url);
-    await second.click('[data-page="tasks"].bottom-nav__item');
+    await second.click('#tasks-tab');
     await second.fill('#task-input', '尚未新增的動作');
     serving = B.output;
     await ready(first);
@@ -206,7 +209,7 @@ try {
     const first = await install(ctx);
     const second = await ctx.newPage();
     await second.goto(url);
-    await second.click('[data-page="tasks"].bottom-nav__item');
+    await second.click('#tasks-tab');
     await second.fill('#task-input', '另一分頁剛儲存的動作');
     await second.click('#task-form button[type="submit"]');
     serving = B.output;
@@ -224,6 +227,51 @@ try {
     await ready(page);
     await page.click('#apply-update');
     await version(page, rollback.info.releaseId);
+  });
+
+  await test('舊四頁更新提示 → 新版遷移、草稿與日期還原', async () => {
+    const oldDir = path.join(testRoot, 'four-page'), appDir = path.join(oldDir, 'src');
+    await mkdir(appDir, { recursive: true });
+    for (const name of ['index.html', 'main.js', 'styles.css', 'preset-exercises.js', 'update-manager.js', 'manifest.json', 'sw.js', 'icons/calendar-icon.svg']) {
+      await mkdir(path.dirname(path.join(appDir, name)), { recursive: true });
+      await writeFile(path.join(appDir, name), git('show', `571e6d3:src/${name}`));
+    }
+    const info = { releaseId: '1999.12.31.1', dataVersion: 1, commit: '571e6d3' };
+    await build({ entryPoints: [path.join(appDir, 'main.js')], outdir: path.join(appDir, 'assets'), bundle: true, format: 'esm', define: { __RELEASE_INFO__: JSON.stringify(info) } });
+    const html = (await readFile(path.join(appDir, 'index.html'), 'utf8')).replace(/main\.js(?:\?[^"']*)?/, 'assets/main.js');
+    await writeFile(path.join(appDir, 'index.html'), html);
+    const resources = [];
+    for (const name of ['index.html', 'styles.css', 'manifest.json', 'icons/calendar-icon.svg', 'assets/main.js']) resources.push({ url: name, sha256: hash(await readFile(path.join(appDir, name))) });
+    await writeFile(path.join(appDir, 'sw.js'), git('show', '571e6d3:src/sw.js').replace('/* RELEASE_CONFIG */ null', JSON.stringify({ ...info, resources })));
+    await writeFile(path.join(appDir, 'version.json'), JSON.stringify(info));
+    const ctx = await context(), page = await install(ctx, oldDir);
+    await page.click('[data-page="schedule"].bottom-nav__item');
+    await page.fill('#schedule-date-input', '2026-10-01');
+    await page.fill('#record-settings-memo', '隱藏功能資料保留');
+    await page.click('#schedule-form button[type="submit"]');
+    await page.fill('[data-field="weight"]', '100');
+    await page.selectOption('[data-field="unit"]', 'lb');
+    await page.fill('[data-field="note"]', '舊版 note 保留');
+    await page.click('[data-page="tasks"].bottom-nav__item');
+    await page.fill('#task-input', '升級前未新增的動作');
+    await page.locator('.task-item__edit').first().click();
+    await page.fill('.task-item__edit-input', '升級前未儲存名稱');
+    const before = await page.evaluate(() => JSON.parse(localStorage.getItem('workoutCalendar.v1')));
+    serving = B.output;
+    await page.click('#check-update');
+    await page.waitForFunction(() => !document.getElementById('apply-update').hidden);
+    await page.click('#apply-update');
+    await version(page, candidate.releaseId);
+    assert.equal(await page.inputValue('#task-input'), '升級前未新增的動作');
+    assert.equal(await page.inputValue('#task-edit-name'), '升級前未儲存名稱');
+    assert.equal(await page.inputValue('#schedule-date-input'), '2026-10-01');
+    const after = await page.evaluate(() => JSON.parse(localStorage.getItem('workoutCalendar.v1')));
+    assert.deepEqual(after.entries, before.entries); assert.equal(after.recordMemo, before.recordMemo);
+    assert.deepEqual(after.completedEntries, []); assert.equal(after.schemaVersion, 2);
+    await page.click('#record-tab');
+    assert(await page.locator('#legacy-section').isVisible());
+    assert.equal(await page.locator('#legacy-list input').count(), 0);
+    assert.equal(await page.locator('#highest-weight').textContent(), '尚無紀錄');
   });
 
   await test('既有舊 worker → 首次新版，關閉舊視窗後接管', async () => {
