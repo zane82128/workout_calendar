@@ -17,12 +17,14 @@ const seed = {
   presetVersionApplied: '2026-02-07-v2', recordMemo: '共用備忘錄保留', scheduleTimerElapsedSeconds: 123,
 };
 async function scenario(name, fn, initial = seed) {
-  const context = await browser.newContext({ timezoneId: 'Asia/Taipei' });
+  const context = await browser.newContext({ timezoneId: 'Asia/Taipei', locale: process.env.TEST_BROWSER_LOCALE || 'zh-TW' });
   const errors = []; context.on('page', (page) => page.on('pageerror', (error) => errors.push(error.message)));
   try {
     await context.addInitScript((data) => { if (location.protocol.startsWith('http') && !localStorage.getItem('product-seeded')) { localStorage.setItem('workoutCalendar.v1', JSON.stringify(data)); localStorage.setItem('product-seeded', '1'); } }, initial);
     const page = await context.newPage(); await page.clock.setFixedTime(new Date('2026-10-20T04:00:00Z'));
     await page.goto(url); await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+    // Scenarios start with a known exercise identity, not the locale-dependent first option.
+    await page.selectOption('#exercise-select', 'bench');
     await fn(page, context); assert.deepEqual(errors, []);
     results.push({ name, passed: true }); console.log(`PASS ${name}`);
   } catch (error) { results.push({ name, passed: false, error: error.stack }); throw error; }
