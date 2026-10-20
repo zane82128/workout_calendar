@@ -195,6 +195,14 @@
         <button class="bottom-nav__item" type="button" data-page="progress">Progress</button>
       </nav>
     </main>
-    <script src="main.js?v=20260218" type="module"></script>
+    <footer class="app-update" aria-label="App 版本與更新">
+      <span id="app-version"></span>
+      <button type="button" id="check-update">檢查更新</button>
+      <p id="update-status" role="status" aria-live="polite"></p>
+      <p id="update-note" hidden>更新將重新載入畫面，輸入內容與計時會保留。</p>
+      <button type="button" id="apply-update" hidden>立即更新</button>
+      <button type="button" id="defer-update" hidden>稍後</button>
+    </footer>
+    <script src="main.js" type="module"></script>
   </body>
 </html>

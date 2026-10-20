@@ -4,6 +4,7 @@ import {
   PRESET_EXERCISES,
   PRESET_VERSION,
 } from './preset-exercises.js';
+import { startUpdateManager, UPDATE_SNAPSHOT_KEY } from './update-manager.js';
 
 const STORAGE_KEY = 'workoutCalendar.v1';
 const LB_TO_KG = 0.45359237;
@@ -89,6 +90,8 @@ let scheduleToastId = null;
 let restAlarmAudioContext = null;
 let restAlarmIntervalId = null;
 let restAlarmStopTimeoutId = null;
+let lastPersistFailed = false;
+let scheduleSessionEngaged = false;
 
 function loadState() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -146,24 +149,30 @@ function loadState() {
 }
 
 function persistState() {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      exercises: state.exercises,
-      entries: state.entries,
-      presetVersionApplied: state.presetVersionApplied,
-      recordMemo: state.recordMemo,
-      scheduleTimerElapsedSeconds: state.scheduleTimerElapsedSeconds,
-      scheduleTimerRunning: state.scheduleTimerRunning,
-      scheduleSessionStartedAt: state.scheduleSessionStartedAt,
-      restTimerMinutes: state.restTimerMinutes,
-      restTimerSeconds: state.restTimerSeconds,
-      restTimerRemainingSeconds: state.restTimerRemainingSeconds,
-      restTimerRunning: state.restTimerRunning,
-      restTimerStartedAt: state.restTimerStartedAt,
-      selectedDate: state.selectedDate.toISOString(),
-    }),
-  );
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        exercises: state.exercises,
+        entries: state.entries,
+        presetVersionApplied: state.presetVersionApplied,
+        recordMemo: state.recordMemo,
+        scheduleTimerElapsedSeconds: state.scheduleTimerElapsedSeconds,
+        scheduleTimerRunning: state.scheduleTimerRunning,
+        scheduleSessionStartedAt: state.scheduleSessionStartedAt,
+        restTimerMinutes: state.restTimerMinutes,
+        restTimerSeconds: state.restTimerSeconds,
+        restTimerRemainingSeconds: state.restTimerRemainingSeconds,
+        restTimerRunning: state.restTimerRunning,
+        restTimerStartedAt: state.restTimerStartedAt,
+        selectedDate: state.selectedDate.toISOString(),
+      }),
+    );
+    lastPersistFailed = false;
+  } catch (error) {
+    lastPersistFailed = true;
+    throw error;
+  }
 }
 
 function seedPresetExercises() {
@@ -485,7 +494,7 @@ function showScheduleToast(message) {
   }, TOAST_DURATION_MS);
 }
 
-function setActivePage(page) {
+function setActivePage(page, { restoring = false } = {}) {
   if (state.activePage === 'schedule' && page !== 'schedule') {
     stopRestTimerAlarm();
   }
@@ -498,8 +507,11 @@ function setActivePage(page) {
   });
 
   if (page === 'schedule') {
-    restartScheduleTimer();
-    focusDate(new Date());
+    scheduleSessionEngaged = true;
+    if (!restoring) {
+      restartScheduleTimer();
+      focusDate(new Date());
+    }
     renderSchedule();
   }
   if (page === 'tasks') {
@@ -1213,10 +1225,72 @@ renderTaskList();
 renderProgress();
 bindEvents();
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch((error) => {
-      console.warn('Service worker registration failed', error);
-    });
-  });
+function updateSnapshot() {
+  return {
+    activePage: state.activePage,
+    scheduleSessionEngaged,
+    selectedDate: state.selectedDate.toISOString(),
+    taskDrafts: Array.from(document.querySelectorAll('.task-item')).flatMap((row) => {
+      const input = row.querySelector('.task-item__edit-input');
+      return input ? [{ id: row.querySelector('.task-item__edit').dataset.id, name: input.value, category: row.querySelector('select').value }] : [];
+    }),
+    // Persisted memo/entry/timer values come from localStorage, never a stale tab's DOM.
+    fields: ['task-input', 'task-category', 'exercise-category-filter', 'exercise-search', 'exercise-select', 'progress-exercise', 'progress-granularity']
+      .map((id) => ({ id, value: document.getElementById(id).value })),
+  };
 }
+
+try {
+  const raw = sessionStorage.getItem(UPDATE_SNAPSHOT_KEY);
+  const saved = raw ? JSON.parse(raw) : null;
+  if (saved) {
+    scheduleSessionEngaged = Boolean(saved.scheduleSessionEngaged);
+    if (saved.selectedDate && !Number.isNaN(new Date(saved.selectedDate).getTime())) state.selectedDate = new Date(saved.selectedDate);
+    setActivePage(['home', 'tasks', 'schedule', 'progress'].includes(saved.activePage) ? saved.activePage : 'home', { restoring: true });
+    renderCalendar();
+    for (const field of saved.fields || []) {
+      // Timers are restored from timestamps, never from an old display snapshot.
+      if (field.id.startsWith('rest-timer-')) continue;
+      const element = document.getElementById(field.id);
+      if (element) element.value = field.value;
+    }
+    renderScheduleFormOptions();
+    const selectedExercise = saved.fields?.find((field) => field.id === 'exercise-select');
+    if (selectedExercise) DOM.exerciseSelect.value = selectedExercise.value;
+    for (const draft of saved.taskDrafts || []) {
+      const button = Array.from(document.querySelectorAll('.task-item__edit')).find((item) => item.dataset.id === draft.id);
+      button?.click();
+      const row = button?.closest('.task-item');
+      if (row) {
+        row.querySelector('.task-item__edit-input').value = draft.name;
+        row.querySelector('.task-item__edit-select').value = draft.category;
+      }
+    }
+    if (state.activePage === 'progress') renderProgress();
+    sessionStorage.removeItem(UPDATE_SNAPSHOT_KEY);
+  }
+} catch (error) { console.warn('Unable to restore update view', error); }
+
+startUpdateManager({
+  save: () => {
+    // Input handlers save synchronously. Verify storage without overwriting newer
+    // records from another tab with this page's older in-memory state.
+    if (lastPersistFailed) throw new Error('有內容尚未成功儲存，請先重新儲存後再更新');
+    const latest = localStorage.getItem(STORAGE_KEY);
+    if (latest === null) persistState();
+    else localStorage.setItem(STORAGE_KEY, latest);
+  },
+  snapshot: updateSnapshot,
+  canPrepare: () => !lastPersistFailed && !DOM.taskInput.value.trim()
+    && !document.querySelector('.task-item__edit-input')
+    && !state.restTimerRunning
+    && !(scheduleSessionEngaged && state.scheduleTimerRunning),
+  freeze: (frozen) => {
+    document.getElementById('app-root').inert = frozen;
+    if (frozen) {
+      window.clearInterval(scheduleTimerId);
+      scheduleTimerId = null;
+      stopRestTimerAlarm();
+    } else startScheduleTimer();
+  },
+});

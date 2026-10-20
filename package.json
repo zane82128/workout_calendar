@@ -3,9 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ui:maps": "node tools/generate-ui-maps.mjs"
+    "ui:maps": "node tools/generate-ui-maps.mjs",
+    "build": "node tools/build.mjs",
+    "check:release": "node tools/check-release.mjs",
+    "test:update": "node tools/test-update.mjs",
+    "release": "node tools/release.mjs",
+    "preview": "node tools/preview.mjs"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "playwright": "^1.52.0"
   }
 }

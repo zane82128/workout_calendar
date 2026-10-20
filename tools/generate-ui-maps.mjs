@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -159,6 +159,7 @@ async function removeOverlay(page) {
 
 async function generate() {
   const config = JSON.parse(await readFile(configPath, 'utf8'));
+  await mkdir(mapsDir, { recursive: true });
   const server = await startStaticServer();
   const browser = await chromium.launch({ headless: true });
 
@@ -179,7 +180,7 @@ async function generate() {
       await page.evaluate(() => window.scrollTo(0, 0));
       await removeOverlay(page);
       await page.screenshot({ path: path.join(mapsDir, `${pageMap.name}_raw.png`) });
-      await injectOverlay(page, pageMap.title, pageMap.elements);
+      await injectOverlay(page, pageMap.title, [...pageMap.elements, ...(config.commonElements || [])]);
       await page.screenshot({ path: path.join(mapsDir, `${pageMap.name}_annotated.png`) });
       await removeOverlay(page);
     }

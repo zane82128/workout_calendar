@@ -1,5 +1,12 @@
 {
   "viewport": { "width": 1000, "height": 900 },
+  "commonElements": [
+    { "label": "App > Updates > Current Version", "selector": "#app-version" },
+    { "label": "App > Updates > Check Update Button", "selector": "#check-update" },
+    { "label": "App > Updates > Update Status", "selector": "#update-status" },
+    { "label": "App > Updates > Apply Update Button", "selector": "#apply-update" },
+    { "label": "App > Updates > Defer Update Button", "selector": "#defer-update" }
+  ],
   "pages": [
     {
       "name": "home",

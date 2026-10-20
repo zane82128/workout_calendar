@@ -82,11 +82,22 @@ workout_calendar/
 
 1. 本地預覽：
    ```bash
-   cd /home/zane82128/personal/workout_calendar/src
+   cd src
    python -m http.server 5173
    ```
+   此方式為來源預覽，不啟用 Service Worker。更新功能請使用建置預覽：
+   ```bash
+   npm ci
+   npx playwright install chromium
+   npm run release -- --release 2026.10.19.1
+   npm run preview
+   ```
+   開啟 `http://127.0.0.1:5173/workout_calendar/src/`。版本 ID 為範例，正式發版須換成未使用的日期與序號。
 2. 部署到 GitHub Pages：
-   - 直接將 `src/` 內容作為靜態站點來源即可。
+   - 正式產物為 `dist/`，保留 App 的 `/workout_calendar/src/` 入口。
+   - 一般 push 只檢查；在 Actions 手動執行 `Release PWA` 才部署。
+   - 首次須將 Pages 的來源改為 GitHub Actions，並完成手機升級驗收。
+   - 完整流程見 [發版 SOP](docs/release-sop.md) 與 [部署步驟](github_pages_pwa_steps.md)。
 
 ## 本地端資料格式
 
@@ -112,6 +123,8 @@ workout_calendar/
 
 ## 文件
 
+- PWA 更新與發版規格：[docs/release-sop.md](docs/release-sop.md)（本地流程已建立，手機與正式環境待驗收）
+- 本地驗收紀錄：[docs/local-validation.md](docs/local-validation.md)
 - 開發日誌：`develop_log.md`
 - 需求說明：`guide.md`
 - UI 元件標註圖：`docs/ui_component_maps/`
