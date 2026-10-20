@@ -4,5 +4,5 @@ import { checkRelease } from './check-release.mjs';
 
 const { info } = await buildRelease(releaseArgument());
 await checkRelease();
-execFileSync(process.execPath, ['tools/test-update.mjs'], { cwd: root, stdio: 'inherit' });
+execFileSync(process.execPath, ['tests/update.test.mjs'], { cwd: root, stdio: 'inherit' });
 console.log(`Release candidate ready: ${info.releaseId}. 未 commit、push 或部署。`);

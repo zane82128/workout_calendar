@@ -6,7 +6,7 @@
     "ui:maps": "node tools/generate-ui-maps.mjs",
     "build": "node tools/build.mjs",
     "check:release": "node tools/check-release.mjs",
-    "test:update": "node tools/test-update.mjs",
+    "test:update": "node tests/update.test.mjs",
     "release": "node tools/release.mjs",
     "preview": "node tools/preview.mjs"
   },

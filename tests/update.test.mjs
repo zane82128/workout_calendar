@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from 'playwright';
-import { buildRelease, root, config, git } from './build.mjs';
-import { checkRelease } from './check-release.mjs';
-import { startServer } from './preview.mjs';
+import { buildRelease, root, config, git } from '../tools/build.mjs';
+import { checkRelease } from '../tools/check-release.mjs';
+import { startServer } from '../tools/preview.mjs';
 
 const testRoot = path.join(root, '.release-tests');
 await mkdir(testRoot, { recursive: true });

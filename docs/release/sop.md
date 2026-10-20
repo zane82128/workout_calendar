@@ -13,6 +13,18 @@
 - 離線、App 未開啟、下載失敗或用戶選擇稍後時，允許繼續使用目前版本；不承諾所有用戶同時更新。
 - 本階段不包含強制更新、遠端推播、帳號同步或訓練資料雲端備份。
 
+### 首次 GitHub Pages 設定與手機安裝
+
+以下由原 `github_pages_pwa_steps.md` 整合，部署說明只維護本文件。
+
+1. 安裝 Node.js 24，於 repo 根目錄執行 `npm ci` 及 `npx playwright install chromium`。
+2. 核對 `release.config.json`、正式入口及 worker scope。
+3. 首次切換時，在 GitHub Settings → Pages → Build and deployment 將 Source 設為 GitHub Actions；這項帳號設定尚未由本地程式自動修改。先確認切換，再 push 到既有發布分支，避免舊的分支式部署直接發布來源檔案。
+4. 確認 Actions 可執行、`github-pages` environment 允許 main 部署，依實際保護規則完成審核。只有確認 Pages 已切換後，才能將一般 push 視為僅檢查、不部署。
+5. 手機候選版本驗證完成後，依第 7 節手動執行 `Release PWA`；確認 build、deploy、record 三項工作成功。
+
+手機安裝：Android Chrome 開啟正式 App 網址，選擇安裝或加到主畫面；iPhone Safari 開啟同一網址，選擇分享 → 加入主畫面。安裝不等於資料已有外部備份。
+
 ## 2. 現況與正式部署位置
 
 目前主程式為 `src/` 下的原生 HTML/CSS/JavaScript，資料位於 `localStorage` 的 `workoutCalendar.v1`。
@@ -173,7 +185,7 @@ release ID 由發版時明確指定，工具檢查格式與重複；CI 使用相
 - 舊快取保留至所有同 scope 頁面回報相同 release ID 才清理。未知或舊頁面不回應時採保留策略，不為節省空間而刪除其依賴。
 - CI 保留正式產物 90 天；過期前如需長期保留，請下載對應 artifact。tag 永久記錄 ID 與 commit。若部署成功但建立 tag 失敗，須補記 tag，不可重用該 ID。
 - 自動化測試使用 Chromium；不等同 iOS Safari 與 Android 安裝模式實機驗收。正式發版工作流程仍需在 GitHub 實際執行後確認權限與 Pages 設定。
-- 已執行的本地驗證見 [local-validation.md](local-validation.md)，生成的測試結果見 `.release-tests/results.json`。
+- 已執行的本地驗證見 [2026-10-19 驗收紀錄](../validation/2026-10-19.md)，生成的測試結果見 `.release-tests/results.json`。
 
 ## 參考資料
 

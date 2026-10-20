@@ -84,4 +84,4 @@ jobs:
               ...context.repo, ref: `refs/tags/pwa-${process.env.RELEASE_ID}`, sha: context.sha
             });
             await core.summary.addHeading(`PWA ${process.env.RELEASE_ID}`)
-              .addRaw(`Commit: ${context.sha}\n\nComplete the production-device checklist in docs/release-sop.md.`).write();
+              .addRaw(`Commit: ${context.sha}\n\nComplete the production-device checklist in docs/release/sop.md.`).write();
