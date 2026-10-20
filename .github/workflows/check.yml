@@ -1,0 +1,27 @@
+name: Check release candidate
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run release -- --release 2099.01.01.1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: update-test-results
+          path: .release-tests/*results.json
+          include-hidden-files: true

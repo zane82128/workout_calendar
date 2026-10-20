@@ -28,3 +28,6 @@ __pycache__/
 
 # Node
 node_modules/
+dist/
+.release-tests/
+test-results/

@@ -1,1222 +1,289 @@
-import {
-  DEFAULT_EXERCISE_CATEGORY,
-  EXERCISE_CATEGORIES,
-  PRESET_EXERCISES,
-  PRESET_VERSION,
-} from './preset-exercises.js';
+import { EXERCISE_CATEGORIES, DEFAULT_EXERCISE_CATEGORY } from './preset-exercises.js';
+import './theme.js';
+import { dateKey, parseDate, requirePastDate, comparison, complete, correct, validName, fourWeeks } from './records.js';
+import { createStore, STORAGE_KEY, StorageFailure } from './storage.js';
+import { createRestTimer, remaining, restConfig, timerLabel } from './rest-timer.js';
+import { startUpdateManager, UPDATE_SNAPSHOT_KEY } from './update-manager.js';
 
-const STORAGE_KEY = 'workoutCalendar.v1';
-const LB_TO_KG = 0.45359237;
-const SCHEDULE_TIMER_CYCLE_SECONDS = 60 * 60;
-const TOAST_DURATION_MS = 1800;
-const REST_TIMER_DEFAULT_MINUTES = 1;
-const REST_TIMER_DEFAULT_SECONDS = 30;
-const REST_ALARM_DURATION_MS = 60 * 1000;
-const REST_ALARM_BURST_INTERVAL_MS = 1200;
+const $ = (id) => document.getElementById(id);
+const store = createStore({ getItem: (key) => window.localStorage.getItem(key), setItem: (key, value) => window.localStorage.setItem(key, value) });
+let data = { exercises: [], entries: [], completedEntries: [] };
+const view = { page: 'record', date: dateKey(), exerciseId: '', weightDirty: false, editId: null, deleteId: null, taskEditId: null };
+let toastId, timer, frozen = false, storageFailed = false;
+const kg = (value) => value === null ? '尚無紀錄' : `${value} kg`;
+const shortDate = (key) => key.replaceAll('-', '/');
 
-const monthFormatter = new Intl.DateTimeFormat('en', { month: 'long' });
-const dayFormatter = new Intl.DateTimeFormat('en', { day: 'numeric' });
-const fullDateFormatter = new Intl.DateTimeFormat('en', {
-  month: 'long',
-  day: 'numeric',
-  year: 'numeric',
-});
-const weekdayFormatter = new Intl.DateTimeFormat('en', { weekday: 'long' });
-const PRESET_CATEGORY_MAP = new Map(
-  PRESET_EXERCISES.map((preset) => [String(preset.name || '').trim().toLowerCase(), preset.category]),
-);
-
-const DOM = {
-  month: document.getElementById('calendar-month'),
-  year: document.getElementById('calendar-year'),
-  days: document.getElementById('calendar-days'),
-  goToday: document.getElementById('go-today'),
-  selectedDate: document.getElementById('selected-date'),
-  selectedWeekday: document.getElementById('selected-weekday'),
-  openSchedule: document.getElementById('open-schedule'),
-  pages: document.querySelectorAll('.page'),
-  navItems: document.querySelectorAll('.bottom-nav__item'),
-  taskForm: document.getElementById('task-form'),
-  taskInput: document.getElementById('task-input'),
-  taskCategory: document.getElementById('task-category'),
-  taskList: document.getElementById('task-list'),
-  scheduleDate: document.getElementById('schedule-date'),
-  scheduleWeekday: document.getElementById('schedule-weekday'),
-  scheduleDateInput: document.getElementById('schedule-date-input'),
-  scheduleForm: document.getElementById('schedule-form'),
-  exerciseCategoryFilter: document.getElementById('exercise-category-filter'),
-  exerciseSearch: document.getElementById('exercise-search'),
-  exerciseSelect: document.getElementById('exercise-select'),
-  scheduleHint: document.getElementById('schedule-hint'),
-  scheduleTimerFill: document.getElementById('schedule-timer-fill'),
-  scheduleTimerText: document.getElementById('schedule-timer-text'),
-  scheduleTimerStart: document.getElementById('schedule-timer-start'),
-  scheduleTimerPause: document.getElementById('schedule-timer-pause'),
-  restTimerMinutes: document.getElementById('rest-timer-minutes'),
-  restTimerSeconds: document.getElementById('rest-timer-seconds'),
-  restTimerDisplay: document.getElementById('rest-timer-display'),
-  restTimerStart: document.getElementById('rest-timer-start'),
-  restTimerPause: document.getElementById('rest-timer-pause'),
-  recordSettingsMemo: document.getElementById('record-settings-memo'),
-  scheduleToast: document.getElementById('schedule-toast'),
-  scheduleList: document.getElementById('schedule-list'),
-  progressExercise: document.getElementById('progress-exercise'),
-  progressGranularity: document.getElementById('progress-granularity'),
-  progressChart: document.getElementById('progress-chart'),
-  progressSummary: document.getElementById('progress-summary'),
-  calendarButtons: document.querySelectorAll('.calendar__btn[data-action]'),
-};
-
-const state = {
-  selectedDate: new Date(),
-  exercises: [],
-  entries: [],
-  presetVersionApplied: null,
-  recordMemo: '',
-  scheduleTimerElapsedSeconds: 0,
-  scheduleTimerRunning: true,
-  scheduleSessionStartedAt: Date.now(),
-  restTimerMinutes: REST_TIMER_DEFAULT_MINUTES,
-  restTimerSeconds: REST_TIMER_DEFAULT_SECONDS,
-  restTimerRemainingSeconds: REST_TIMER_DEFAULT_MINUTES * 60 + REST_TIMER_DEFAULT_SECONDS,
-  restTimerRunning: false,
-  restTimerStartedAt: Date.now(),
-  activePage: 'home',
-};
-
-let scheduleTimerId = null;
-let scheduleToastId = null;
-let restAlarmAudioContext = null;
-let restAlarmIntervalId = null;
-let restAlarmStopTimeoutId = null;
-
-function loadState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return;
+function node(tag, text, className) {
+  const element = document.createElement(tag);
+  if (text !== undefined) element.textContent = String(text);
+  if (className) element.className = className;
+  return element;
+}
+function button(text, action, className) {
+  const result = node('button', text, className); result.type = 'button'; result.addEventListener('click', action); return result;
+}
+function showError(error, field = 'app') {
+  const element = field === 'entry' ? $('entry-error') : field === 'task' ? $('task-error') : $('error-text');
+  element.textContent = error.message || String(error); element.hidden = false;
+  if (field === 'app') $('app-error').hidden = false;
+}
+function notify(text, duration = 1000) {
+  clearTimeout(toastId);
+  $('completion-toast').textContent = text; $('completion-toast').hidden = false;
+  toastId = setTimeout(() => { $('completion-toast').hidden = true; }, duration);
+}
+function hideToast() { clearTimeout(toastId); $('completion-toast').hidden = true; }
+function updateVisibleArea() {
+  const viewport = window.visualViewport;
+  const inset = viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
+  document.documentElement.style.setProperty('--keyboard-inset', `${inset}px`);
+}
+window.visualViewport?.addEventListener('resize', updateVisibleArea);
+window.visualViewport?.addEventListener('scroll', updateVisibleArea);
+updateVisibleArea();
+function transact(action, field = 'app') {
+  if (frozen) return false;
   try {
-    const parsed = JSON.parse(raw);
-    state.exercises = Array.isArray(parsed.exercises) ? parsed.exercises : [];
-    state.exercises = state.exercises.map((exercise) => ({
-      ...exercise,
-      category: normalizeCategory(exercise.category || inferCategoryByName(exercise.name)),
-    }));
-    state.entries = Array.isArray(parsed.entries) ? parsed.entries : [];
-    state.entries = state.entries.map((entry) => ({
-      ...entry,
-      note: typeof entry.note === 'string' ? entry.note : '',
-    }));
-    state.presetVersionApplied = typeof parsed.presetVersionApplied === 'string'
-      ? parsed.presetVersionApplied
-      : null;
-    state.recordMemo = typeof parsed.recordMemo === 'string' ? parsed.recordMemo : '';
-    state.scheduleTimerElapsedSeconds = Number.isFinite(Number(parsed.scheduleTimerElapsedSeconds))
-      ? Math.max(0, Number(parsed.scheduleTimerElapsedSeconds))
-      : 0;
-    state.scheduleTimerRunning = typeof parsed.scheduleTimerRunning === 'boolean'
-      ? parsed.scheduleTimerRunning
-      : true;
-    state.scheduleSessionStartedAt = Number.isFinite(Number(parsed.scheduleSessionStartedAt))
-      ? Number(parsed.scheduleSessionStartedAt)
-      : Date.now();
-    state.restTimerMinutes = Number.isFinite(Number(parsed.restTimerMinutes))
-      ? Math.max(0, Math.min(99, Number(parsed.restTimerMinutes)))
-      : REST_TIMER_DEFAULT_MINUTES;
-    state.restTimerSeconds = Number.isFinite(Number(parsed.restTimerSeconds))
-      ? Math.max(0, Math.min(59, Number(parsed.restTimerSeconds)))
-      : REST_TIMER_DEFAULT_SECONDS;
-    const defaultRestSeconds = state.restTimerMinutes * 60 + state.restTimerSeconds;
-    state.restTimerRemainingSeconds = Number.isFinite(Number(parsed.restTimerRemainingSeconds))
-      ? Math.max(0, Number(parsed.restTimerRemainingSeconds))
-      : defaultRestSeconds;
-    state.restTimerRunning = typeof parsed.restTimerRunning === 'boolean'
-      ? parsed.restTimerRunning
-      : false;
-    state.restTimerStartedAt = Number.isFinite(Number(parsed.restTimerStartedAt))
-      ? Number(parsed.restTimerStartedAt)
-      : Date.now();
-    if (parsed.selectedDate) {
-      const storedDate = new Date(parsed.selectedDate);
-      if (!Number.isNaN(storedDate.getTime())) {
-        state.selectedDate = storedDate;
-      }
-    }
+    data = store.transaction(action); storageFailed = false; $('app-error').hidden = true;
+    $('entry-error').hidden = true; $('task-error').hidden = true;
+    return true;
   } catch (error) {
-    console.warn('Failed to load local data', error);
+    // A failed write never updates data or reports success.
+    if (error instanceof StorageFailure) storageFailed = true;
+    showError(error, field); return false;
   }
 }
-
-function persistState() {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      exercises: state.exercises,
-      entries: state.entries,
-      presetVersionApplied: state.presetVersionApplied,
-      recordMemo: state.recordMemo,
-      scheduleTimerElapsedSeconds: state.scheduleTimerElapsedSeconds,
-      scheduleTimerRunning: state.scheduleTimerRunning,
-      scheduleSessionStartedAt: state.scheduleSessionStartedAt,
-      restTimerMinutes: state.restTimerMinutes,
-      restTimerSeconds: state.restTimerSeconds,
-      restTimerRemainingSeconds: state.restTimerRemainingSeconds,
-      restTimerRunning: state.restTimerRunning,
-      restTimerStartedAt: state.restTimerStartedAt,
-      selectedDate: state.selectedDate.toISOString(),
-    }),
-  );
+function categories(select, all = false) {
+  select.replaceChildren();
+  if (all) { const option = node('option', '全部分類'); option.value = 'all'; select.append(option); }
+  for (const value of EXERCISE_CATEGORIES) { const option = node('option', value); option.value = value; select.append(option); }
+  if (!all) select.value = DEFAULT_EXERCISE_CATEGORY;
 }
-
-function seedPresetExercises() {
-  if (state.presetVersionApplied === PRESET_VERSION) return;
-  const existingNames = new Set(
-    state.exercises.map((exercise) => exercise.name.trim().toLowerCase()),
-  );
-
-  PRESET_EXERCISES.forEach((preset) => {
-    const trimmed = String(preset?.name || '').trim();
-    if (!trimmed) return;
-    const key = trimmed.toLowerCase();
-    if (existingNames.has(key)) return;
-    existingNames.add(key);
-    state.exercises.push({
-      id: crypto.randomUUID(),
-      name: trimmed,
-      category: normalizeCategory(preset?.category),
-      createdAt: new Date().toISOString(),
-    });
-  });
-
-  state.presetVersionApplied = PRESET_VERSION;
-  persistState();
+function activeExercises() {
+  return data.exercises.filter((e) => !e.archived)
+    .filter((e) => $('exercise-category-filter').value === 'all' || (e.category || DEFAULT_EXERCISE_CATEGORY) === $('exercise-category-filter').value)
+    .filter((e) => e.name.toLowerCase().includes($('exercise-search').value.trim().toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
-
-function normalizeCategory(category) {
-  if (EXERCISE_CATEGORIES.includes(category)) return category;
-  return DEFAULT_EXERCISE_CATEGORY;
+function renderOptions(reset = false) {
+  const exercises = activeExercises();
+  if (!exercises.some((e) => e.id === view.exerciseId)) { view.exerciseId = exercises[0]?.id || ''; reset = true; }
+  $('exercise-select').replaceChildren();
+  for (const e of exercises) { const option = node('option', `${e.name} · ${e.category || DEFAULT_EXERCISE_CATEGORY}`); option.value = e.id; $('exercise-select').append(option); }
+  if (!exercises.length) { const option = node('option', '沒有符合的動作，請新增或恢復動作'); option.value = ''; $('exercise-select').append(option); }
+  $('exercise-select').value = view.exerciseId;
+  $('exercise-select').disabled = !exercises.length;
+  $('complete-button').disabled = !exercises.length;
+  renderComparison(reset);
 }
-
-function inferCategoryByName(name) {
-  const key = String(name || '').trim().toLowerCase();
-  return PRESET_CATEGORY_MAP.get(key) || DEFAULT_EXERCISE_CATEGORY;
+function renderComparison(reset = false) {
+  const result = comparison(data.completedEntries, view.exerciseId, view.date);
+  $('last-weight').textContent = kg(result.previous?.weight ?? null);
+  $('last-date').textContent = result.previous ? shortDate(result.previous.dateKey) : '';
+  $('highest-weight').textContent = kg(result.highest);
+  $('current-weight').textContent = `當天最高：${result.current ? kg(result.current.weight) : '—'}`;
+  if (reset) { $('entry-weight').value = result.previous ? result.previous.weight : ''; view.weightDirty = false; }
 }
-
-function renderCategorySelect(selectElement, { includeAll = false } = {}) {
-  if (!selectElement) return;
-  const previousValue = selectElement.value;
-  selectElement.innerHTML = '';
-  if (includeAll) {
-    const allOption = document.createElement('option');
-    allOption.value = 'all';
-    allOption.textContent = '全部分類';
-    selectElement.appendChild(allOption);
-  }
-  EXERCISE_CATEGORIES.forEach((category) => {
-    const option = document.createElement('option');
-    option.value = category;
-    option.textContent = category;
-    selectElement.appendChild(option);
-  });
-  const availableValues = Array.from(selectElement.options).map((option) => option.value);
-  if (availableValues.includes(previousValue)) {
-    selectElement.value = previousValue;
-  } else if (includeAll) {
-    selectElement.value = 'all';
-  } else {
-    selectElement.value = DEFAULT_EXERCISE_CATEGORY;
-  }
-}
-
-function dateKey(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function parseDateKey(key) {
-  const text = String(key || '');
-  const [yearText, monthText, dayText] = text.split('-');
-  const year = Number(yearText);
-  const month = Number(monthText);
-  const day = Number(dayText);
-  if (!year || !month || !day) return null;
-  const date = new Date(year, month - 1, day);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function isSameDay(dateA, dateB) {
-  return (
-    dateA.getFullYear() === dateB.getFullYear()
-    && dateA.getMonth() === dateB.getMonth()
-    && dateA.getDate() === dateB.getDate()
-  );
-}
-
-function getStartOfWeek(date) {
-  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  start.setDate(start.getDate() - start.getDay());
-  return start;
-}
-
-function buildFourWeekDates(anchorDate) {
-  const thisWeekStart = getStartOfWeek(anchorDate);
-  const start = new Date(thisWeekStart);
-  start.setDate(start.getDate() - 14);
-  return Array.from({ length: 28 }, (_, index) => {
-    const date = new Date(start);
-    date.setDate(start.getDate() + index);
-    const outside = date.getMonth() !== anchorDate.getMonth();
-    return { date, outside };
-  });
-}
-
-function formatTimerLabel(elapsedSeconds) {
-  const minutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
-  const seconds = String(elapsedSeconds % 60).padStart(2, '0');
-  return `${minutes}:${seconds}`;
-}
-
-function getConfiguredRestSeconds() {
-  return (state.restTimerMinutes * 60) + state.restTimerSeconds;
-}
-
-function getCurrentRestRemainingSeconds() {
-  if (!state.restTimerRunning) {
-    return Math.max(0, state.restTimerRemainingSeconds);
-  }
-  const elapsed = Math.max(0, Math.floor((Date.now() - state.restTimerStartedAt) / 1000));
-  return Math.max(0, state.restTimerRemainingSeconds - elapsed);
-}
-
-function renderScheduleMemo() {
-  if (!DOM.recordSettingsMemo) return;
-  DOM.recordSettingsMemo.value = state.recordMemo;
-}
-
-function renderRestTimer() {
-  if (!DOM.restTimerDisplay) return;
-  const remainingSeconds = getCurrentRestRemainingSeconds();
-  DOM.restTimerDisplay.textContent = formatTimerLabel(remainingSeconds);
-
-  if (DOM.restTimerMinutes) {
-    DOM.restTimerMinutes.value = String(state.restTimerMinutes);
-    DOM.restTimerMinutes.disabled = state.restTimerRunning;
-  }
-  if (DOM.restTimerSeconds) {
-    DOM.restTimerSeconds.value = String(state.restTimerSeconds).padStart(2, '0');
-    DOM.restTimerSeconds.disabled = state.restTimerRunning;
-  }
-  if (DOM.restTimerStart) {
-    DOM.restTimerStart.disabled = state.restTimerRunning || getConfiguredRestSeconds() <= 0;
-  }
-  if (DOM.restTimerPause) {
-    const isAlarmPlaying = restAlarmIntervalId !== null || restAlarmStopTimeoutId !== null;
-    DOM.restTimerPause.disabled = !state.restTimerRunning && !isAlarmPlaying;
-  }
-}
-
-function renderScheduleTimer() {
-  if (!DOM.scheduleTimerFill || !DOM.scheduleTimerText) return;
-  const runningSeconds = state.scheduleTimerRunning
-    ? Math.floor((Date.now() - state.scheduleSessionStartedAt) / 1000)
-    : 0;
-  const elapsedSeconds = Math.max(0, Math.floor(state.scheduleTimerElapsedSeconds + runningSeconds));
-  const progress = (elapsedSeconds % SCHEDULE_TIMER_CYCLE_SECONDS) / SCHEDULE_TIMER_CYCLE_SECONDS;
-  DOM.scheduleTimerFill.style.width = `${Math.max(2, progress * 100)}%`;
-  DOM.scheduleTimerText.textContent = `Session timer ${formatTimerLabel(elapsedSeconds)}`;
-  if (DOM.scheduleTimerStart) {
-    DOM.scheduleTimerStart.disabled = state.scheduleTimerRunning;
-  }
-  if (DOM.scheduleTimerPause) {
-    DOM.scheduleTimerPause.disabled = !state.scheduleTimerRunning;
-  }
-}
-
-function startScheduleTimer() {
-  if (scheduleTimerId !== null) return;
-  renderScheduleTimer();
-  renderRestTimer();
-  scheduleTimerId = window.setInterval(() => {
-    renderScheduleTimer();
-    const remainingSeconds = getCurrentRestRemainingSeconds();
-    if (state.restTimerRunning && remainingSeconds <= 0) {
-      state.restTimerRemainingSeconds = 0;
-      state.restTimerRunning = false;
-      persistState();
-      renderRestTimer();
-      showScheduleToast('組間休息結束');
-      playRestTimerAlarm();
-      return;
-    }
-    renderRestTimer();
-  }, 1000);
-}
-
-function restartScheduleTimer() {
-  state.scheduleTimerElapsedSeconds = 0;
-  state.scheduleTimerRunning = true;
-  state.scheduleSessionStartedAt = Date.now();
-  persistState();
-  renderScheduleTimer();
-}
-
-async function ensureRestAlarmAudioContext() {
-  const AudioCtor = window.AudioContext || window.webkitAudioContext;
-  if (!AudioCtor) return null;
-  if (!restAlarmAudioContext) {
-    restAlarmAudioContext = new AudioCtor();
-  }
-  if (restAlarmAudioContext.state === 'suspended') {
-    await restAlarmAudioContext.resume();
-  }
-  return restAlarmAudioContext;
-}
-
-async function playRestTimerAlarm() {
-  try {
-    stopRestTimerAlarm();
-    const context = await ensureRestAlarmAudioContext();
-    if (!context) return;
-    const playBurst = () => {
-      const now = context.currentTime;
-      const beepOffsets = [0, 0.28, 0.56];
-      beepOffsets.forEach((offset) => {
-        const osc = context.createOscillator();
-        const gain = context.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = 880;
-        gain.gain.value = 0;
-        osc.connect(gain);
-        gain.connect(context.destination);
-        gain.gain.setValueAtTime(0.0001, now + offset);
-        gain.gain.exponentialRampToValueAtTime(0.22, now + offset + 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.2);
-        osc.start(now + offset);
-        osc.stop(now + offset + 0.22);
-      });
-    };
-
-    playBurst();
-    restAlarmIntervalId = window.setInterval(() => {
-      playBurst();
-    }, REST_ALARM_BURST_INTERVAL_MS);
-    restAlarmStopTimeoutId = window.setTimeout(() => {
-      stopRestTimerAlarm();
-    }, REST_ALARM_DURATION_MS);
-  } catch (error) {
-    console.warn('Failed to play rest timer alarm', error);
-  }
-}
-
-function stopRestTimerAlarm() {
-  if (restAlarmIntervalId !== null) {
-    window.clearInterval(restAlarmIntervalId);
-    restAlarmIntervalId = null;
-  }
-  if (restAlarmStopTimeoutId !== null) {
-    window.clearTimeout(restAlarmStopTimeoutId);
-    restAlarmStopTimeoutId = null;
-  }
-}
-
-function startRestTimerCountdown() {
-  stopRestTimerAlarm();
-  if (state.restTimerRunning) return;
-  const configuredSeconds = getConfiguredRestSeconds();
-  if (configuredSeconds <= 0) return;
-  if (state.restTimerRemainingSeconds <= 0) {
-    state.restTimerRemainingSeconds = configuredSeconds;
-  }
-  state.restTimerRunning = true;
-  state.restTimerStartedAt = Date.now();
-  persistState();
-  renderRestTimer();
-}
-
-function pauseRestTimerCountdown() {
-  stopRestTimerAlarm();
-  if (!state.restTimerRunning) return;
-  state.restTimerRemainingSeconds = getCurrentRestRemainingSeconds();
-  state.restTimerRunning = false;
-  persistState();
-  renderRestTimer();
-}
-
-function syncRestTimerConfigFromInputs() {
-  if (!DOM.restTimerMinutes || !DOM.restTimerSeconds) return;
-  stopRestTimerAlarm();
-  const nextMinutes = Math.max(0, Math.min(99, Number(DOM.restTimerMinutes.value) || 0));
-  const nextSeconds = Math.max(0, Math.min(59, Number(DOM.restTimerSeconds.value) || 0));
-  state.restTimerMinutes = nextMinutes;
-  state.restTimerSeconds = nextSeconds;
-  if (!state.restTimerRunning) {
-    state.restTimerRemainingSeconds = getConfiguredRestSeconds();
-  }
-  persistState();
-  renderRestTimer();
-}
-
-function startScheduleTimerSession() {
-  if (state.scheduleTimerRunning) return;
-  state.scheduleTimerRunning = true;
-  state.scheduleSessionStartedAt = Date.now();
-  persistState();
-  renderScheduleTimer();
-}
-
-function pauseScheduleTimerSession() {
-  if (!state.scheduleTimerRunning) return;
-  const deltaSeconds = Math.max(0, Math.floor((Date.now() - state.scheduleSessionStartedAt) / 1000));
-  state.scheduleTimerElapsedSeconds += deltaSeconds;
-  state.scheduleTimerRunning = false;
-  persistState();
-  renderScheduleTimer();
-}
-
-function showScheduleToast(message) {
-  if (!DOM.scheduleToast) return;
-  if (scheduleToastId !== null) {
-    window.clearTimeout(scheduleToastId);
-  }
-  DOM.scheduleToast.textContent = message;
-  DOM.scheduleToast.classList.add('schedule__toast--visible');
-  scheduleToastId = window.setTimeout(() => {
-    DOM.scheduleToast.classList.remove('schedule__toast--visible');
-  }, TOAST_DURATION_MS);
-}
-
-function setActivePage(page) {
-  if (state.activePage === 'schedule' && page !== 'schedule') {
-    stopRestTimerAlarm();
-  }
-  state.activePage = page;
-  DOM.pages.forEach((section) => {
-    section.classList.toggle('page--active', section.dataset.page === page);
-  });
-  DOM.navItems.forEach((button) => {
-    button.classList.toggle('is-active', button.dataset.page === page);
-  });
-
-  if (page === 'schedule') {
-    restartScheduleTimer();
-    focusDate(new Date());
-    renderSchedule();
-  }
-  if (page === 'tasks') {
-    renderTaskList();
-  }
-  if (page === 'progress') {
-    renderProgress();
-  }
-}
-
-function setSelectedDate(date) {
-  state.selectedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  persistState();
-  renderCalendar();
-  renderScheduleHeader();
-}
-
-function focusDate(date) {
-  setSelectedDate(date);
-}
-
-function updateWeightConversion(value, unit, targetEl) {
-  if (!targetEl) return;
-  if (!value || Number.isNaN(Number(value))) {
-    targetEl.textContent = '';
-    return;
-  }
-  if (unit === 'lb') {
-    const kg = Number(value) * LB_TO_KG;
-    targetEl.textContent = `≈ ${kg.toFixed(1)} kg`;
-  } else {
-    targetEl.textContent = '';
-  }
-}
-
 function renderCalendar() {
-  const anchorDate = state.selectedDate;
-  const monthName = monthFormatter.format(anchorDate);
-  DOM.month.textContent = monthName;
-  DOM.year.textContent = anchorDate.getFullYear();
-
-  const workoutDays = new Set(state.entries.map((entry) => entry.dateKey));
-
-  DOM.days.innerHTML = '';
-  const dates = buildFourWeekDates(anchorDate);
-  dates.forEach(({ date, outside }) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'calendar__day';
-    if (outside) button.classList.add('calendar__day--outside');
-    if (isSameDay(date, new Date())) button.classList.add('calendar__day--today');
-    if (isSameDay(date, state.selectedDate)) button.classList.add('calendar__day--selected');
-
-    const key = dateKey(date);
-    if (workoutDays.has(key)) {
-      button.classList.add('calendar__day--workout');
-    }
-
-    button.innerHTML = `<span>${dayFormatter.format(date)}</span>`;
-    button.addEventListener('click', () => {
-      setSelectedDate(date);
-    });
-    DOM.days.appendChild(button);
-  });
-
-  DOM.selectedDate.textContent = fullDateFormatter.format(state.selectedDate);
-  DOM.selectedWeekday.textContent = weekdayFormatter.format(state.selectedDate);
-}
-
-function renderTaskList() {
-  DOM.taskList.innerHTML = '';
-  if (state.exercises.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'empty-state';
-    empty.textContent = 'No exercises yet. Add your first movement above.';
-    DOM.taskList.appendChild(empty);
-    return;
+  const today = dateKey();
+  $('schedule-date-input').max = today; $('schedule-date-input').value = view.date;
+  $('date-title').textContent = view.date === today ? '今天' : shortDate(view.date);
+  $('calendar-month').textContent = view.date.slice(0, 7).replace('-', ' / ');
+  $('calendar-days').replaceChildren();
+  const completed = new Set(data.completedEntries.map((r) => r.dateKey)), legacy = new Set(data.entries.map((r) => r?.dateKey));
+  for (const key of fourWeeks(view.date)) {
+    const hasNew = completed.has(key), hasOld = legacy.has(key);
+    const cell = button(String(Number(key.slice(-2))), () => selectDate(key));
+    cell.dataset.date = key;
+    cell.className = hasNew ? 'calendar__day--workout' : hasOld ? 'calendar__day--legacy' : '';
+    cell.disabled = key > today; cell.setAttribute('aria-pressed', String(key === view.date));
+    cell.setAttribute('aria-label', `${shortDate(key)}${hasNew ? '，已完成' : hasOld ? '，舊版紀錄' : '，無紀錄'}`);
+    $('calendar-days').append(cell);
   }
-
-  state.exercises
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .forEach((exercise) => {
-      const row = document.createElement('div');
-      row.className = 'task-item';
-      row.innerHTML = `
-        <div class="task-item__content">
-          <div class="task-item__name">${exercise.name}</div>
-          <div class="task-item__meta">${exercise.category} · Added ${new Date(exercise.createdAt).toLocaleDateString()}</div>
-        </div>
-        <div class="task-item__actions">
-          <button class="task-item__edit" type="button" data-id="${exercise.id}">Edit</button>
-          <button class="task-item__delete" type="button" data-id="${exercise.id}">Delete</button>
-        </div>
-      `;
-
-      row.querySelector('.task-item__delete').addEventListener('click', () => {
-        state.exercises = state.exercises.filter((item) => item.id !== exercise.id);
-        persistState();
-        renderTaskList();
-        renderScheduleFormOptions();
-        renderProgress();
+}
+function selectDate(key) {
+  hideToast();
+  try { requirePastDate(key); } catch (error) { showError(error, 'entry'); $('schedule-date-input').value = view.date; return; }
+  view.date = key; view.editId = null; view.deleteId = null; $('entry-error').hidden = true;
+  renderCalendar(); renderRecords(); renderComparison(true);
+}
+function renderRecords() {
+  const list = $('completed-list'); list.replaceChildren();
+  const records = data.completedEntries.filter((r) => r.dateKey === view.date);
+  if (!records.length) list.append(node('p', '尚無紀錄', 'muted'));
+  for (const r of records) {
+    const row = node('article', undefined, 'record-item'); row.dataset.id = r.id;
+    const heading = node('div', undefined, 'row'); heading.append(node('span', r.exerciseName), node('span', kg(r.weight)));
+    const actions = node('div', undefined, 'links');
+    actions.append(button('更正', () => { view.editId = r.id; view.deleteId = null; renderRecords(); }), button('刪除', () => { view.deleteId = r.id; view.editId = null; renderRecords(); }));
+    row.append(heading, actions);
+    if (view.editId === r.id) {
+      const form = node('form', undefined, 'edit-box'); form.noValidate = true;
+      const label = node('label', '更正重量（kg）'); label.htmlFor = 'correct-weight';
+      const input = node('input'); input.id = 'correct-weight'; input.type = 'number'; input.min = '0'; input.step = 'any'; input.inputMode = 'decimal'; input.value = r.weight;
+      const error = node('p', '', 'error'); error.setAttribute('role', 'alert');
+      const save = node('button', '儲存'); save.type = 'submit';
+      form.append(label, input, save, button('取消', () => { view.editId = null; renderRecords(); }), error);
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (transact((latest) => correct(latest, r.id, input.value), 'entry')) { view.editId = null; refresh(); notify('已更正'); }
+        else error.textContent = $('entry-error').textContent;
       });
-
-      row.querySelector('.task-item__edit').addEventListener('click', () => {
-        const content = row.querySelector('.task-item__content');
-        content.innerHTML = `
-          <div class="task-item__edit-row">
-            <input class="task-item__edit-input" type="text" value="${exercise.name}" />
-            <select class="task-item__edit-select">
-              ${EXERCISE_CATEGORIES.map((category) => `
-                <option value="${category}" ${category === exercise.category ? 'selected' : ''}>${category}</option>
-              `).join('')}
-            </select>
-            <button class="task-item__save" type="button">Save</button>
-            <button class="task-item__cancel" type="button">Cancel</button>
-          </div>
-        `;
-        const input = content.querySelector('.task-item__edit-input');
-        const categorySelect = content.querySelector('.task-item__edit-select');
-        const saveBtn = content.querySelector('.task-item__save');
-        const cancelBtn = content.querySelector('.task-item__cancel');
-
-        const restore = () => {
-          content.innerHTML = `
-            <div class="task-item__name">${exercise.name}</div>
-            <div class="task-item__meta">${exercise.category} · Added ${new Date(exercise.createdAt).toLocaleDateString()}</div>
-          `;
-        };
-
-        saveBtn.addEventListener('click', () => {
-          const nextName = input.value.trim();
-          if (!applyExerciseRename(exercise.id, nextName)) {
-            input.focus();
-            return;
-          }
-          exercise.category = normalizeCategory(categorySelect.value);
-          syncEntryExerciseSnapshot(exercise.id);
-          persistState();
-          renderTaskList();
-          renderScheduleFormOptions();
-          renderScheduleList();
-          renderProgress();
-        });
-
-        cancelBtn.addEventListener('click', () => {
-          restore();
-        });
-
-        input.focus();
-      });
-
-      DOM.taskList.appendChild(row);
-    });
-}
-
-function renderScheduleHeader() {
-  DOM.scheduleDate.textContent = fullDateFormatter.format(state.selectedDate);
-  DOM.scheduleWeekday.textContent = weekdayFormatter.format(state.selectedDate);
-  DOM.scheduleDateInput.value = dateKey(state.selectedDate);
-}
-
-function renderScheduleFormOptions() {
-  const selectedCategory = DOM.exerciseCategoryFilter?.value || 'all';
-  const searchTerm = (DOM.exerciseSearch?.value || '').trim().toLowerCase();
-  const previousValue = DOM.exerciseSelect.value;
-  DOM.exerciseSelect.innerHTML = '';
-  if (state.exercises.length === 0) {
-    const option = document.createElement('option');
-    option.value = '';
-    option.textContent = 'Add exercises in Tasks first';
-    DOM.exerciseSelect.appendChild(option);
-    DOM.exerciseSelect.disabled = true;
-    if (DOM.exerciseSearch) {
-      DOM.exerciseSearch.disabled = true;
-      DOM.exerciseSearch.value = '';
+      row.append(form);
     }
-    if (DOM.exerciseCategoryFilter) {
-      DOM.exerciseCategoryFilter.disabled = true;
-      DOM.exerciseCategoryFilter.value = 'all';
-    }
-    DOM.scheduleHint.textContent = 'Create exercises in Tasks to enable entry.';
-    return;
-  }
-
-  if (DOM.exerciseSearch) {
-    DOM.exerciseSearch.disabled = false;
-  }
-  if (DOM.exerciseCategoryFilter) {
-    DOM.exerciseCategoryFilter.disabled = false;
-  }
-
-  const filteredExercises = state.exercises
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .filter((exercise) => selectedCategory === 'all' || exercise.category === selectedCategory)
-    .filter((exercise) => exercise.name.toLowerCase().includes(searchTerm));
-
-  if (filteredExercises.length === 0) {
-    const option = document.createElement('option');
-    option.value = '';
-    option.textContent = 'No matching exercise';
-    DOM.exerciseSelect.appendChild(option);
-    DOM.exerciseSelect.disabled = true;
-    DOM.scheduleHint.textContent = 'No exercise matches current search.';
-    return;
-  }
-
-  DOM.exerciseSelect.disabled = false;
-  DOM.scheduleHint.textContent = '';
-  filteredExercises
-    .forEach((exercise) => {
-      const option = document.createElement('option');
-      option.value = exercise.id;
-      option.textContent = `${exercise.name} (${exercise.category})`;
-      DOM.exerciseSelect.appendChild(option);
-    });
-
-  const hasPrevious = filteredExercises.some((exercise) => exercise.id === previousValue);
-  if (hasPrevious) {
-    DOM.exerciseSelect.value = previousValue;
-  } else {
-    DOM.exerciseSelect.value = filteredExercises[0].id;
-  }
-}
-
-function renderScheduleList() {
-  const key = dateKey(state.selectedDate);
-  const entries = state.entries.filter((entry) => entry.dateKey === key);
-  DOM.scheduleList.innerHTML = '';
-
-  if (entries.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'empty-state';
-    empty.textContent = 'No workout entries yet. Add one above.';
-    DOM.scheduleList.appendChild(empty);
-    return;
-  }
-
-  entries.forEach((entry) => {
-    const card = document.createElement('div');
-    card.className = 'workout-card';
-    card.dataset.id = entry.id;
-    const displayName = entry.exerciseName || 'Workout';
-    const displayCategory = entry.exerciseCategory || getExerciseCategory(entry.exerciseId);
-    const converted = entry.unit === 'lb'
-      ? `≈ ${(entry.weight * LB_TO_KG).toFixed(1)} kg`
-      : '';
-
-    card.innerHTML = `
-      <div class="workout-card__header">
-        <h3 class="workout-card__title">${displayName}</h3>
-        <div class="workout-card__actions">
-          <button class="workout-card__copy" type="button">Copy</button>
-          <button class="workout-card__delete" type="button">Delete</button>
-        </div>
-      </div>
-      <p class="workout-card__category">${displayCategory}</p>
-      <div class="workout-card__grid">
-        <div class="workout-card__field">
-          <label>Date</label>
-          <input type="date" value="${entry.dateKey}" data-field="dateKey" />
-        </div>
-        <div class="workout-card__field">
-          <label>Weight</label>
-          <div class="workout-card__weight">
-            <input type="number" min="0" step="0.5" value="${entry.weight}" data-field="weight" />
-            <select data-field="unit">
-              <option value="kg" ${entry.unit === 'kg' ? 'selected' : ''}>kg</option>
-              <option value="lb" ${entry.unit === 'lb' ? 'selected' : ''}>lb</option>
-            </select>
-          </div>
-          <div class="workout-card__convert">${converted}</div>
-        </div>
-        <div class="workout-card__field">
-          <label>Reps</label>
-          <input type="number" min="1" step="1" value="${entry.reps}" data-field="reps" />
-        </div>
-        <div class="workout-card__field">
-          <label>Sets</label>
-          <input type="number" min="1" step="1" value="${entry.sets}" data-field="sets" />
-        </div>
-        <div class="workout-card__field workout-card__field--full">
-          <label>Note</label>
-          <textarea data-field="note" rows="2" placeholder="例如：組間休息 90 秒">${entry.note || ''}</textarea>
-        </div>
-      </div>
-    `;
-
-    card.querySelector('.workout-card__delete').addEventListener('click', () => {
-      state.entries = state.entries.filter((item) => item.id !== entry.id);
-      persistState();
-      renderSchedule();
-      renderCalendar();
-      renderProgress();
-    });
-
-    card.querySelector('.workout-card__copy').addEventListener('click', () => {
-      duplicateEntry(entry.id);
-    });
-
-    const fields = card.querySelectorAll('[data-field]');
-    fields.forEach((field) => {
-      const handler = (event) => {
-        const target = event.target;
-        const keyName = target.dataset.field;
-        const current = state.entries.find((item) => item.id === entry.id);
-        if (!current) return;
-        if (keyName === 'dateKey') {
-          if (!parseDateKey(target.value)) return;
-          current.dateKey = target.value;
-        } else if (keyName === 'note') {
-          current.note = target.value;
-        } else if (keyName === 'unit') {
-          current.unit = target.value;
-        } else {
-          const value = target.value;
-          current[keyName] = value === '' ? 0 : Number(value);
+    if (view.deleteId === r.id) {
+      const confirmation = node('div', undefined, 'confirm-box'); confirmation.setAttribute('role', 'alert');
+      confirmation.append(node('p', '刪除這筆紀錄？'), node('p', '重量對照將重新計算。', 'muted'), button('取消', () => { view.deleteId = null; renderRecords(); }), button('確認刪除', () => {
+        if (transact((latest) => { latest.completedEntries = latest.completedEntries.filter((entry) => entry.id !== r.id); })) {
+          view.deleteId = null; refresh(); notify('已刪除');
         }
-        persistState();
-        if (keyName === 'dateKey') {
-          renderCalendar();
-          renderScheduleList();
-          renderProgress();
-          return;
-        }
-        if (keyName === 'weight' || keyName === 'unit') {
-          const convertEl = card.querySelector('.workout-card__convert');
-          updateWeightConversion(current.weight, current.unit, convertEl);
-        }
-        if (keyName === 'weight' || keyName === 'reps' || keyName === 'sets') {
-          renderProgress();
-        }
-      };
-      field.addEventListener('input', handler);
-      field.addEventListener('change', handler);
-    });
-
-    DOM.scheduleList.appendChild(card);
-  });
-}
-
-function renderSchedule() {
-  renderScheduleHeader();
-  renderScheduleMemo();
-  renderScheduleTimer();
-  renderRestTimer();
-  renderScheduleFormOptions();
-  renderScheduleList();
-}
-
-function getEntryVolume(entry) {
-  return Number(entry.weight || 0) * Number(entry.reps || 0) * Number(entry.sets || 0);
-}
-
-function renderProgressExerciseOptions() {
-  if (!DOM.progressExercise) return;
-  const previousValue = DOM.progressExercise.value;
-  DOM.progressExercise.innerHTML = '';
-  const sortedExercises = state.exercises.slice().sort((a, b) => a.name.localeCompare(b.name));
-  sortedExercises.forEach((exercise) => {
-    const option = document.createElement('option');
-    option.value = exercise.id;
-    option.textContent = `${exercise.name} (${exercise.category})`;
-    DOM.progressExercise.appendChild(option);
-  });
-  if (!sortedExercises.length) return;
-  const hasPrevious = sortedExercises.some((exercise) => exercise.id === previousValue);
-  DOM.progressExercise.value = hasPrevious ? previousValue : sortedExercises[0].id;
-}
-
-function getProgressData(exerciseId, granularity) {
-  const entries = state.entries.filter((entry) => entry.exerciseId === exerciseId);
-  const aggregate = new Map();
-  entries.forEach((entry) => {
-    const bucket = granularity === 'month' ? entry.dateKey.slice(0, 7) : entry.dateKey;
-    const current = aggregate.get(bucket) || 0;
-    aggregate.set(bucket, current + getEntryVolume(entry));
-  });
-
-  const keys = Array.from(aggregate.keys()).sort((a, b) => a.localeCompare(b));
-  return keys.map((key) => ({ label: key, value: aggregate.get(key) || 0 }));
-}
-
-function renderProgressChart(points) {
-  if (!DOM.progressChart) return;
-  const canvas = DOM.progressChart;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  const cssWidth = canvas.clientWidth || 900;
-  const cssHeight = 320;
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.floor(cssWidth * dpr);
-  canvas.height = Math.floor(cssHeight * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  ctx.clearRect(0, 0, cssWidth, cssHeight);
-  ctx.fillStyle = 'rgba(148, 163, 184, 0.16)';
-  ctx.fillRect(0, 0, cssWidth, cssHeight);
-
-  if (!points.length) {
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '16px Segoe UI';
-    ctx.textAlign = 'center';
-    ctx.fillText('No data yet for selected exercise.', cssWidth / 2, cssHeight / 2);
-    return;
-  }
-
-  const left = 44;
-  const right = 16;
-  const top = 20;
-  const bottom = 34;
-  const chartW = cssWidth - left - right;
-  const chartH = cssHeight - top - bottom;
-  const maxValue = Math.max(...points.map((point) => point.value), 1);
-
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(left, top);
-  ctx.lineTo(left, top + chartH);
-  ctx.lineTo(left + chartW, top + chartH);
-  ctx.stroke();
-
-  const stepX = points.length > 1 ? chartW / (points.length - 1) : 0;
-  const pathPoints = points.map((point, index) => {
-    const x = left + (points.length > 1 ? stepX * index : chartW / 2);
-    const y = top + chartH - (point.value / maxValue) * chartH;
-    return { x, y, ...point };
-  });
-
-  ctx.strokeStyle = '#f59e0b';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  pathPoints.forEach((point, index) => {
-    if (index === 0) ctx.moveTo(point.x, point.y);
-    else ctx.lineTo(point.x, point.y);
-  });
-  ctx.stroke();
-
-  ctx.fillStyle = '#f59e0b';
-  pathPoints.forEach((point) => {
-    ctx.beginPath();
-    ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '11px Segoe UI';
-  ctx.textAlign = 'center';
-  const labelIndexes = points.length <= 6
-    ? points.map((_, index) => index)
-    : [0, Math.floor(points.length / 2), points.length - 1];
-  labelIndexes.forEach((index) => {
-    const point = pathPoints[index];
-    ctx.fillText(point.label, point.x, top + chartH + 16);
-  });
-
-  ctx.textAlign = 'left';
-  ctx.fillText('0', 6, top + chartH + 4);
-  ctx.fillText(`${Math.round(maxValue)}`, 6, top + 4);
-}
-
-function renderProgress() {
-  if (!DOM.progressExercise || !DOM.progressGranularity || !DOM.progressSummary) return;
-  renderProgressExerciseOptions();
-  const exerciseId = DOM.progressExercise.value;
-  if (!exerciseId) {
-    renderProgressChart([]);
-    DOM.progressSummary.textContent = '請先在 Tasks 建立訓練動作。';
-    return;
-  }
-
-  const granularity = DOM.progressGranularity.value || 'day';
-  const exercise = state.exercises.find((item) => item.id === exerciseId);
-  const points = getProgressData(exerciseId, granularity);
-  renderProgressChart(points);
-
-  const total = points.reduce((sum, point) => sum + point.value, 0);
-  DOM.progressSummary.textContent = points.length
-    ? `${exercise?.name || 'Exercise'} · ${granularity === 'day' ? '日' : '月'}軸，共 ${points.length} 筆，總容量 ${Math.round(total)}`
-    : `${exercise?.name || 'Exercise'} 目前沒有可用紀錄。`;
-}
-
-function getExerciseCategory(exerciseId) {
-  const exercise = state.exercises.find((item) => item.id === exerciseId);
-  return exercise?.category || DEFAULT_EXERCISE_CATEGORY;
-}
-
-function syncEntryExerciseSnapshot(exerciseId) {
-  const exercise = state.exercises.find((item) => item.id === exerciseId);
-  if (!exercise) return;
-  state.entries.forEach((entry) => {
-    if (entry.exerciseId === exerciseId) {
-      entry.exerciseName = exercise.name;
-      entry.exerciseCategory = exercise.category;
+      })); row.append(confirmation);
     }
-  });
-}
-
-function applyExerciseRename(exerciseId, nextName) {
-  const trimmed = (nextName || '').trim();
-  if (!trimmed) return false;
-  const exercise = state.exercises.find((item) => item.id === exerciseId);
-  if (!exercise) return false;
-  const exists = state.exercises.some(
-    (item) => item.id !== exerciseId && item.name.toLowerCase() === trimmed.toLowerCase(),
-  );
-  if (exists) return false;
-
-  exercise.name = trimmed;
-  syncEntryExerciseSnapshot(exerciseId);
-  return true;
-}
-
-function addExercise(name, category) {
-  const trimmed = name.trim();
-  if (!trimmed) return;
-  const exists = state.exercises.some((exercise) => exercise.name.toLowerCase() === trimmed.toLowerCase());
-  if (exists) {
-    DOM.taskInput.value = '';
-    DOM.taskInput.focus();
-    return;
+    list.append(row);
   }
-  state.exercises.push({
-    id: crypto.randomUUID(),
-    name: trimmed,
-    category: normalizeCategory(category),
-    createdAt: new Date().toISOString(),
-  });
-  persistState();
-  DOM.taskInput.value = '';
-  renderTaskList();
-  renderScheduleFormOptions();
-  renderProgress();
+  const old = data.entries.filter((r) => r && r.dateKey === view.date);
+  $('legacy-section').hidden = !old.length; $('legacy-list').replaceChildren();
+  for (const r of old) {
+    const card = node('article', undefined, 'record-item');
+    card.append(node('p', `${r.exerciseName || '未命名動作'}　${r.weight ?? '—'} ${r.unit || 'kg'}`), node('p', `${r.reps ?? '—'} 次 × ${r.sets ?? '—'} 組`, 'muted'));
+    if (r.note) card.append(node('p', r.note, 'muted'));
+    $('legacy-list').append(card);
+  }
 }
-
-function addEntry() {
-  if (state.exercises.length === 0) return;
-  const exerciseId = DOM.exerciseSelect.value;
-  const exercise = state.exercises.find((item) => item.id === exerciseId);
-  if (!exercise) return;
-
-  state.entries.push({
-    id: crypto.randomUUID(),
-    dateKey: dateKey(state.selectedDate),
-    exerciseId: exercise.id,
-    exerciseName: exercise.name,
-    exerciseCategory: exercise.category,
-    weight: 0,
-    unit: 'kg',
-    reps: 8,
-    sets: 3,
-    note: '',
-    createdAt: new Date().toISOString(),
-  });
-
-  persistState();
-  renderScheduleList();
-  renderCalendar();
-  renderProgress();
-  showScheduleToast(`已新增${exercise.name}`);
-}
-
-function duplicateEntry(entryId) {
-  const source = state.entries.find((entry) => entry.id === entryId);
-  if (!source) return;
-  state.entries.push({
-    ...source,
-    id: crypto.randomUUID(),
-    createdAt: new Date().toISOString(),
-  });
-  persistState();
-  renderScheduleList();
-  renderCalendar();
-  renderProgress();
-}
-
-function bindEvents() {
-  DOM.calendarButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const action = button.dataset.action;
-      const next = new Date(state.selectedDate);
-      if (action === 'prev') {
-        next.setDate(next.getDate() - 7);
-      } else if (action === 'next') {
-        next.setDate(next.getDate() + 7);
-      }
-      setSelectedDate(next);
-    });
-  });
-
-  DOM.goToday.addEventListener('click', () => {
-    focusDate(new Date());
-  });
-
-  DOM.openSchedule.addEventListener('click', () => {
-    setActivePage('schedule');
-  });
-
-  DOM.navItems.forEach((button) => {
-    button.addEventListener('click', () => {
-      setActivePage(button.dataset.page);
-    });
-  });
-
-  DOM.taskForm.addEventListener('submit', (event) => {
-    event.preventDefault();
-    addExercise(DOM.taskInput.value, DOM.taskCategory?.value);
-  });
-
-  DOM.scheduleDateInput.addEventListener('change', (event) => {
-    const value = event.target.value;
-    if (!value) return;
-    const next = new Date(`${value}T00:00:00`);
-    if (!Number.isNaN(next.getTime())) {
-      focusDate(next);
-      renderSchedule();
+function renderTasks() {
+  $('task-list').replaceChildren(); $('archived-list').replaceChildren();
+  for (const exercise of data.exercises.slice().sort((a, b) => a.name.localeCompare(b.name))) {
+    const row = node('div', undefined, 'task-item'); row.dataset.id = exercise.id;
+    const heading = node('div', undefined, 'row'), links = node('div', undefined, 'links');
+    heading.append(node('span', exercise.name));
+    if (!exercise.archived) links.append(button('改名', () => { view.taskEditId = exercise.id; renderTasks(); }));
+    links.append(button(exercise.archived ? '恢復' : '封存', () => {
+      if (transact((latest) => {
+        const current = latest.exercises.find((e) => e.id === exercise.id);
+        if (!current) throw new Error('動作已變更，請重試');
+        current.archived = !current.archived;
+      }, 'task')) { view.taskEditId = null; refresh(); notify(exercise.archived ? '已恢復' : '已封存'); }
+    }));
+    heading.append(links); row.append(heading, node('div', exercise.category || DEFAULT_EXERCISE_CATEGORY, 'muted'));
+    if (view.taskEditId === exercise.id && !exercise.archived) {
+      const form = node('form', undefined, 'edit-box'); form.noValidate = true;
+      const input = node('input'); input.id = 'task-edit-name'; input.value = exercise.name; input.setAttribute('aria-label', '動作名稱');
+      const category = node('select'); category.id = 'task-edit-category'; category.setAttribute('aria-label', '動作分類'); categories(category); category.value = exercise.category || DEFAULT_EXERCISE_CATEGORY;
+      const save = node('button', '儲存'); save.type = 'submit';
+      form.append(input, category, save, button('取消', () => { view.taskEditId = null; renderTasks(); }));
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (transact((latest) => {
+          const current = latest.exercises.find((e) => e.id === exercise.id);
+          if (!current) throw new Error('動作已變更，請重試');
+          current.name = validName(latest, input.value, current.id); current.category = category.value;
+        }, 'task')) { view.taskEditId = null; refresh(); notify('已儲存'); }
+      }); row.append(form);
     }
-  });
-
-  DOM.scheduleForm.addEventListener('submit', (event) => {
-    event.preventDefault();
-    addEntry();
-  });
-
-  if (DOM.recordSettingsMemo) {
-    DOM.recordSettingsMemo.addEventListener('input', (event) => {
-      state.recordMemo = event.target.value;
-      persistState();
-    });
+    $(exercise.archived ? 'archived-list' : 'task-list').append(row);
   }
-
-  if (DOM.scheduleTimerStart) {
-    DOM.scheduleTimerStart.addEventListener('click', () => {
-      startScheduleTimerSession();
-    });
+  if (!$('task-list').childElementCount) $('task-list').append(node('p', '請新增或恢復動作', 'muted'));
+  if (!$('archived-list').childElementCount) $('archived-list').append(node('p', '尚無封存動作', 'muted'));
+}
+function setPage(page) {
+  view.page = page === 'tasks' ? 'tasks' : 'record';
+  for (const name of ['record', 'tasks']) { $(`${name}-page`).hidden = view.page !== name; $(`${name}-tab`).setAttribute('aria-selected', String(view.page === name)); }
+}
+function refresh() { renderCalendar(); renderOptions(); renderRecords(); renderTasks(); }
+function renderTimer(latest, alarmPlaying) {
+  const config = restConfig(latest);
+  $('rest-timer-display').textContent = timerLabel(remaining(latest));
+  for (const [id, value] of [['rest-timer-minutes', config.minutes], ['rest-timer-seconds', config.seconds]]) {
+    // Do not overwrite a partial numeric input while the user is editing it.
+    if (document.activeElement !== $(id)) $(id).value = value;
+    $(id).disabled = Boolean(latest.restTimerRunning);
   }
+  $('rest-timer-start').disabled = Boolean(latest.restTimerRunning) || !(config.minutes * 60 + config.seconds);
+  $('rest-timer-pause').disabled = !latest.restTimerRunning && !alarmPlaying;
+}
 
-  if (DOM.scheduleTimerPause) {
-    DOM.scheduleTimerPause.addEventListener('click', () => {
-      pauseScheduleTimerSession();
-    });
+categories($('task-category')); categories($('exercise-category-filter'), true);
+try { data = store.initialize(); } catch (error) { storageFailed = true; showError(error); }
+refresh(); renderComparison(true);
+timer = createRestTimer({ store, render: renderTimer, message: notify, failure: (error) => { storageFailed = true; showError(error); } });
+
+$('record-tab').onclick = () => setPage('record'); $('tasks-tab').onclick = () => setPage('tasks');
+// Keyboard navigation for the two tabs.
+document.querySelector('nav').addEventListener('keydown', (event) => {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+  event.preventDefault(); const page = event.key === 'Home' ? 'record' : event.key === 'End' ? 'tasks' : view.page === 'record' ? 'tasks' : 'record'; setPage(page); $(`${page}-tab`).focus();
+});
+$('schedule-date-input').onchange = (event) => selectDate(event.target.value);
+$('go-today').onclick = () => selectDate(dateKey());
+for (const [id, offset] of [['calendar-prev', -7], ['calendar-next', 7]]) $(id).onclick = () => {
+  const next = parseDate(view.date); next.setDate(next.getDate() + offset); selectDate(dateKey(next) > dateKey() ? dateKey() : dateKey(next));
+};
+$('exercise-select').onchange = (event) => { view.exerciseId = event.target.value; renderComparison(true); };
+$('exercise-search').oninput = () => renderOptions(true); $('exercise-category-filter').onchange = () => renderOptions(true);
+$('entry-weight').oninput = () => { view.weightDirty = true; $('entry-error').hidden = true; };
+$('complete-form').onsubmit = (event) => {
+  event.preventDefault();
+  hideToast();
+  if (transact((latest) => complete(latest, view.exerciseId, view.date, $('entry-weight').value), 'entry')) {
+    view.weightDirty = false; refresh(); notify('已完成');
   }
-
-  if (DOM.restTimerStart) {
-    DOM.restTimerStart.addEventListener('click', async () => {
-      await ensureRestAlarmAudioContext();
-      startRestTimerCountdown();
-    });
+};
+$('task-form').onsubmit = (event) => {
+  event.preventDefault();
+  if (transact((latest) => latest.exercises.push({ id: crypto.randomUUID(), name: validName(latest, $('task-input').value), category: $('task-category').value, createdAt: new Date().toISOString() }), 'task')) {
+    $('task-input').value = ''; refresh(); notify('已新增');
   }
+};
+$('retry-storage').onclick = () => { try { data = store.initialize(); storageFailed = false; $('app-error').hidden = true; refresh(); timer.update(); } catch (error) { showError(error); } };
+$('rest-timer-start').onclick = timer.start; $('rest-timer-pause').onclick = timer.pause;
+for (const id of ['rest-timer-minutes', 'rest-timer-seconds']) $(id).onchange = () => timer.configure($('rest-timer-minutes').value, $('rest-timer-seconds').value);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderCalendar(); timer.update(); } });
 
-  if (DOM.restTimerPause) {
-    DOM.restTimerPause.addEventListener('click', () => {
-      pauseRestTimerCountdown();
-    });
-  }
-
-  if (DOM.restTimerMinutes) {
-    DOM.restTimerMinutes.addEventListener('input', () => {
-      syncRestTimerConfigFromInputs();
-    });
-  }
-
-  if (DOM.restTimerSeconds) {
-    DOM.restTimerSeconds.addEventListener('input', () => {
-      syncRestTimerConfigFromInputs();
-    });
-  }
-
-  if (DOM.exerciseSearch) {
-    DOM.exerciseSearch.addEventListener('input', () => {
-      renderScheduleFormOptions();
-    });
-  }
-
-  if (DOM.exerciseCategoryFilter) {
-    DOM.exerciseCategoryFilter.addEventListener('change', () => {
-      renderScheduleFormOptions();
-    });
-  }
-
-  if (DOM.progressExercise) {
-    DOM.progressExercise.addEventListener('change', () => {
-      renderProgress();
-    });
-  }
-
-  if (DOM.progressGranularity) {
-    DOM.progressGranularity.addEventListener('change', () => {
-      renderProgress();
-    });
-  }
-
-  window.addEventListener('resize', () => {
-    if (state.activePage === 'progress') {
-      renderProgress();
+function snapshot() {
+  return {
+    page: view.page, selectedDate: view.date, exerciseId: view.exerciseId, weightDirty: view.weightDirty,
+    editId: view.editId, taskEditId: view.taskEditId,
+    details: Array.from(document.querySelectorAll('details[id]')).filter((d) => d.open).map((d) => d.id),
+    fields: Array.from(document.querySelectorAll('input[id],select[id]')).map((input) => ({ id: input.id, value: input.value })),
+  };
+}
+try {
+  const raw = sessionStorage.getItem(UPDATE_SNAPSHOT_KEY), saved = raw ? JSON.parse(raw) : null;
+  if (saved) {
+    const fields = new Map((saved.fields || []).map((field) => [field.id, field.value]));
+    // Accept the previous four-page updater's snapshot during the first upgrade.
+    const storedDate = saved.selectedDate;
+    const date = fields.get('schedule-date-input') || (typeof storedDate === 'string' && storedDate.length === 10 ? storedDate : storedDate ? dateKey(new Date(storedDate)) : null);
+    if (date) { try { requirePastDate(date); view.date = date; } catch { /* Invalid/future selection: use today. */ } }
+    view.page = saved.page || (saved.activePage === 'tasks' ? 'tasks' : 'record');
+    view.exerciseId = saved.exerciseId || fields.get('exercise-select') || '';
+    view.editId = saved.editId || null; view.taskEditId = saved.taskEditId || saved.taskDrafts?.[0]?.id || null;
+    for (const id of ['exercise-search', 'exercise-category-filter']) if (fields.has(id)) $(id).value = fields.get(id);
+    refresh(); setPage(view.page);
+    for (const [id, value] of fields) {
+      if (['schedule-date-input', 'exercise-select', 'exercise-category-filter', 'exercise-search', 'rest-timer-minutes', 'rest-timer-seconds'].includes(id)) continue;
+      if ($(id)) $(id).value = value;
     }
-  });
-}
+    if (saved.taskDrafts?.[0] && $('task-edit-name')) { $('task-edit-name').value = saved.taskDrafts[0].name; $('task-edit-category').value = saved.taskDrafts[0].category; }
+    for (const id of saved.details || []) if ($(id)) $(id).open = true;
+    view.weightDirty = Boolean(saved.weightDirty);
+    sessionStorage.removeItem(UPDATE_SNAPSHOT_KEY);
+  }
+} catch (error) { showError(new Error(`更新畫面無法還原：${error.message}`)); }
 
-loadState();
-seedPresetExercises();
-renderCategorySelect(DOM.taskCategory);
-renderCategorySelect(DOM.exerciseCategoryFilter, { includeAll: true });
-startScheduleTimer();
-renderCalendar();
-renderSchedule();
-renderTaskList();
-renderProgress();
-bindEvents();
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch((error) => {
-      console.warn('Service worker registration failed', error);
-    });
-  });
-}
+// Changes from other tabs are read before every write. Do not destroy local drafts.
+window.addEventListener('storage', (event) => {
+  if (event.key !== STORAGE_KEY || frozen) return;
+  try { data = store.read(); renderCalendar(); renderComparison(); if (!view.editId) renderRecords(); if (!view.taskEditId) renderTasks(); }
+  catch (error) { storageFailed = true; showError(error); }
+});
+startUpdateManager({
+  save: () => {
+    if (storageFailed) throw new Error('請先排除儲存錯誤再更新');
+    const latest = localStorage.getItem(STORAGE_KEY); store.read();
+    if (latest !== null) localStorage.setItem(STORAGE_KEY, latest);
+  },
+  snapshot,
+  canPrepare: () => !storageFailed && !view.weightDirty && !$('task-input').value.trim() && !view.taskEditId && !view.editId && !store.read().restTimerRunning && !timer.playing(),
+  freeze: (value) => { frozen = value; $('app-root').inert = value; timer.freeze(value); },
+});
