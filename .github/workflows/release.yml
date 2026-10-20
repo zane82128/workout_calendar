@@ -10,6 +10,11 @@ on:
         description: 'Candidate tested on installed Android Chrome and iOS Safari PWA'
         required: true
         type: boolean
+      repair_release:
+        description: 'Repair release: allow deployment before device verification; complete Android checks immediately afterwards'
+        required: true
+        default: false
+        type: boolean
 permissions:
   contents: read
 concurrency:
@@ -17,7 +22,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   build:
-    if: github.ref == 'refs/heads/main' && inputs.mobile_verified
+    if: github.ref == 'refs/heads/main' && (inputs.mobile_verified || inputs.repair_release)
     runs-on: ubuntu-latest
     env:
       RELEASE_ID: ${{ inputs.release_id }}
@@ -32,6 +37,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - name: Record device verification status
+        env:
+          REPAIR_RELEASE: ${{ inputs.repair_release }}
+          MOBILE_VERIFIED: ${{ inputs.mobile_verified }}
+        run: |
+          if [ "$REPAIR_RELEASE" = "true" ] && [ "$MOBILE_VERIFIED" != "true" ]; then
+            echo "::warning::Repair release: Android verification is pending and must be completed after deployment; iOS is unverified."
+            echo "### Repair release — device verification pending" >> "$GITHUB_STEP_SUMMARY"
+            echo "Complete the Android post-deployment checklist in docs/release/sop.md. iOS remains unverified." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Verify and test the exact artifact to publish
         run: npm run release
       - uses: actions/upload-artifact@v4

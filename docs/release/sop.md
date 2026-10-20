@@ -115,6 +115,19 @@ release ID 由發版時明確指定，工具檢查格式與重複；CI 使用相
 
 ## 7. 每次正式發版 SOP
 
+### 已授權的修復發布例外（2026-10-20）
+
+使用者同意為目前正式站異常先發布通過自動測試的完整產物，再做 Android 實機驗收。這不是已完成手機測試，也不表示 iOS 已驗證。一般發版仍沿用原驗收門檻；只有明確選擇修復發布才使用此例外。
+
+1. 確認 Pages Source 已設為 GitHub Actions，保留 `/workout_calendar/src/` 入口與 worker scope，不再以分支原始檔發布。
+2. 將修復流程修改提交至 main，等 Check release candidate 通過。
+3. 在 Release PWA → Run workflow 選 main，填未使用的 release ID（例如 2026.10.20.4）；未完成雙平台驗證時不要勾 mobile_verified，本次勾 repair_release。
+4. 工作流程仍執行完整建置、產物、資料規則、產品與更新測試，成功後才部署 dist/。修復模式不略過測試、乾淨工作目錄、版本唯一性及 main 最新提交檢查。
+5. 確認 build/deploy/record 都成功；正式 `src/version.json` 顯示本次 ID。以原 Android 已安裝 App 測更新，不清資料、不解除安裝。必要時關閉所有同站分頁及 App 再重開。
+6. 檢查像素主題、日期與動作正常；核對原紀錄，保存一筆明確的測試紀錄後重開，最後測離線。記錄 Android／瀏覽器版本及結果，iOS 保持「未驗證」。異常則停止後續一般發版，診斷或以相容修復版本處理。
+
+未完成步驟 6 前，狀態只能記「修復版已部署、Android 驗收待完成」，不可標示全面驗收通過。
+
 ### 發版前
 
 - [ ] 工作目錄乾淨，確認目標 commit、正式網址、base path 與 release ID。
