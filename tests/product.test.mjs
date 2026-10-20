@@ -32,6 +32,37 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('wo
 async function date(page, key) { await page.fill('#schedule-date-input', key); }
 async function finish(page, key, weight) { await date(page, key); await page.fill('#entry-weight', String(weight)); await page.click('#complete-button'); }
 try {
+  await scenario('雙主題、系統同步、偏好保存、離線字型與資料隔離', async (page, context) => {
+    await page.evaluate(() => document.fonts.ready);
+    assert(await page.evaluate(() => document.fonts.check('18px "Fusion Pixel"', '訓練深蹲重量')));
+    const before = await stored(page);
+    await page.emulateMedia({ colorScheme: 'dark' }); await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+    assert.equal(await page.getAttribute('html', 'data-theme'), 'dark');
+    await page.selectOption('#theme-select', 'light');
+    await page.reload(); await page.evaluate(() => document.fonts.ready);
+    assert.equal(await page.getAttribute('html', 'data-theme'), 'light');
+    for (const mode of ['light', 'dark']) {
+      await page.selectOption('#theme-select', mode);
+      for (const width of [320, 390, 768]) {
+        await page.setViewportSize({ width, height: 844 });
+        assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.screenshot({ path: path.join(folder, `theme-${mode}.png`), fullPage: true });
+      await page.click('#tasks-tab');
+      assert(await page.locator('#task-input').isVisible());
+      await page.click('#record-tab');
+    }
+    await page.selectOption('#theme-select', 'system');
+    await page.emulateMedia({ colorScheme: 'light' }); await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+    assert.equal(await page.getAttribute('html', 'data-theme'), 'light');
+    await page.emulateMedia({ colorScheme: 'dark' }); await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+    assert.equal(await page.getAttribute('html', 'data-theme'), 'dark');
+    await context.setOffline(true); await page.reload(); await page.evaluate(() => document.fonts.ready);
+    assert(await page.evaluate(() => document.fonts.check('18px "Fusion Pixel"')));
+    assert.equal(await page.getAttribute('html', 'data-theme'), 'dark');
+    assert.deepEqual(await stored(page), before);
+  });
   await scenario('遷移備份、舊資料原樣只讀與安全文字顯示', async (page) => {
     const data = await stored(page); assert.deepEqual(data.entries, seed.entries); assert.equal(data.recordMemo, seed.recordMemo); assert.equal(data.scheduleTimerElapsedSeconds, 123);
     const backup = await page.evaluate(() => JSON.parse(localStorage.getItem('workoutCalendar.backup.beforeWeightV2'))); assert.deepEqual(backup, seed);
@@ -86,9 +117,11 @@ try {
   });
   await scenario('底部完成通知一秒、重複計時、無版面推動及窄螢幕', async (page) => {
     await page.clock.install({ time: new Date('2026-10-20T04:00:00Z') }); await page.clock.pauseAt(new Date('2026-10-20T04:00:01Z'));
-    const y = (await page.locator('#completed-list').boundingBox()).y;
+    await page.evaluate(() => document.fonts.ready);
+    const documentY = () => page.locator('#completed-list').evaluate((e) => e.getBoundingClientRect().top + scrollY);
+    const y = await documentY();
     await page.fill('#entry-weight', '30'); await page.click('#complete-button'); assert.equal(await page.locator('#completion-toast').textContent(), '已完成');
-    assert.equal((await page.locator('#completed-list').boundingBox()).y, y);
+    assert.equal(await documentY(), y);
     await page.clock.fastForward(999); assert(await page.locator('#completion-toast').isVisible()); await page.clock.fastForward(1); assert(await page.locator('#completion-toast').isHidden());
     await page.click('#complete-button'); await page.clock.fastForward(600); await page.click('#complete-button'); await page.clock.fastForward(600); assert(await page.locator('#completion-toast').isVisible()); await page.clock.fastForward(400); assert(await page.locator('#completion-toast').isHidden());
     for (const width of [320, 390, 768]) { await page.setViewportSize({ width, height: 844 }); assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)); }

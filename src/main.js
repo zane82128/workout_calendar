@@ -1,4 +1,5 @@
 import { EXERCISE_CATEGORIES, DEFAULT_EXERCISE_CATEGORY } from './preset-exercises.js';
+import './theme.js';
 import { dateKey, parseDate, requirePastDate, comparison, complete, correct, validName, fourWeeks } from './records.js';
 import { createStore, STORAGE_KEY, StorageFailure } from './storage.js';
 import { createRestTimer, remaining, restConfig, timerLabel } from './rest-timer.js';

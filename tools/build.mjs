@@ -62,6 +62,7 @@ export async function buildRelease(id, output = path.join(root, 'dist')) {
     absWorkingDir: root, entryPoints: ['src/main.js', 'src/styles.css'],
     outdir: path.join(appDir, 'assets'), entryNames: '[name]-[hash]',
     bundle: true, format: 'esm', target: ['es2020'], write: false,
+    loader: { '.woff2': 'file', '.svg': 'file' }, assetNames: '[name]-[hash]',
     define: { __RELEASE_INFO__: JSON.stringify(info) },
   });
   for (const file of await filesIn(output)) await rm(path.join(output, file));
@@ -76,6 +77,9 @@ export async function buildRelease(id, output = path.join(root, 'dist')) {
   await writeFile(path.join(appDir, 'index.html'), html);
   await cp(path.join(root, 'src/icons'), path.join(appDir, 'icons'), { recursive: true });
   await cp(path.join(root, 'src/manifest.json'), path.join(appDir, 'manifest.json'));
+  await mkdir(path.join(appDir, 'fonts'), { recursive: true });
+  await cp(path.join(root, 'src/fonts/OFL.txt'), path.join(appDir, 'fonts/OFL.txt'));
+  await cp(path.join(root, 'src/fonts/LICENSES'), path.join(appDir, 'fonts/LICENSES'), { recursive: true });
   const resources = [];
   for (const name of await filesIn(appDir)) resources.push({ url: name, sha256: hash(await readFile(path.join(appDir, name))) });
   const worker = (await readFile(path.join(root, 'src/sw.js'), 'utf8')).replace('/* RELEASE_CONFIG */ null', JSON.stringify({ ...info, resources }));
