@@ -90,11 +90,23 @@ export function createRestTimer({ store, render, message, failure }) {
       stopAlarm(); update();
     } catch (error) { failure(error); }
   }
+  function reset() {
+    stopAlarm();
+    try {
+      store.transaction((data) => {
+        const { minutes, seconds } = restConfig(data);
+        data.restTimerRunning = false;
+        data.restTimerRemainingSeconds = minutes * 60 + seconds;
+        data.restTimerStartedAt = null;
+      });
+      update();
+    } catch (error) { failure(error); }
+  }
   function freeze(value) {
     frozen = value;
     if (value) stopAlarm(); else update();
   }
   tickId = setInterval(update, 1000);
   update();
-  return { start, pause, configure, update, freeze, playing, dispose: () => { clearInterval(tickId); stopAlarm(); } };
+  return { start, pause, reset, configure, update, freeze, playing, dispose: () => { clearInterval(tickId); stopAlarm(); } };
 }

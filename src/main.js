@@ -238,6 +238,7 @@ $('task-form').onsubmit = (event) => {
 };
 $('retry-storage').onclick = () => { try { data = store.initialize(); storageFailed = false; $('app-error').hidden = true; refresh(); timer.update(); } catch (error) { showError(error); } };
 $('rest-timer-start').onclick = timer.start; $('rest-timer-pause').onclick = timer.pause;
+$('rest-timer-reset').onclick = timer.reset;
 for (const id of ['rest-timer-minutes', 'rest-timer-seconds']) $(id).onchange = () => timer.configure($('rest-timer-minutes').value, $('rest-timer-seconds').value);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderCalendar(); timer.update(); } });
 
