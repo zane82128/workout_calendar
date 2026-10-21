@@ -1,5 +1,7 @@
 # 系統與資料的白話說明
 
+回報原型（2026-10-21）：services/feedback/Code.gs 獨立部署到 Apps Script，擁有者授權寫入私人 Reports 試算表；不打包到 App。tools/feedback-preview.mjs 僅在 localhost 提供開發連線頁。原型使用可讀回應的跨站 POST 與持久編號去重，鎖定寫入後 flush 才回 ok；瀏覽器遇到未知結果不宣稱成功。尚無真實 /exec、線上跨站驗收或 src/ 整合，現行訓練資料流不變。見 [設定](feedback-setup.md)。
+
 休息重置（2026-10-21）：rest-timer.js 新增 reset，先停止本頁音訊，再以現有 store.transaction 將剩餘秒數設為 restConfig 總秒數、running=false、startedAt=null。沿用原格式與資料櫃，不新增服務或遷移。其他分頁已在播放的音訊沒有新增跨頁停止協定。
 
 2026-10-21 B 版：只調整 index.html 的當天最高位置與主題選項文案、styles.css 的緊湊排列，以及 main.js 的空成績字級 class。保留所有操作與快照使用的 ID；日曆 summary 在日期列旁定位，展開內容仍在一般文件流，不遮住動作表單。沒有新增儲存欄位、依賴或資料遷移。

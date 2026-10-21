@@ -136,7 +136,16 @@ try {
     await page.locator('#rest-panel summary').click(); await page.fill('#rest-timer-minutes', '0'); await page.fill('#rest-timer-seconds', '5'); await page.click('#rest-timer-start');
     await page.clock.fastForward(2000); await page.click('#rest-timer-pause'); assert.equal(await page.locator('#rest-timer-display').textContent(), '00:03');
     await page.clock.fastForward(4000); assert.equal(await page.locator('#rest-timer-display').textContent(), '00:03');
+    await page.click('#rest-timer-reset'); assert.equal(await page.locator('#rest-timer-display').textContent(), '00:05');
+    await page.click('#rest-timer-start'); await page.clock.fastForward(2000);
+    await page.click('#rest-timer-reset'); assert.equal(await page.locator('#rest-timer-display').textContent(), '00:05');
+    assert.equal((await stored(page)).restTimerRunning, false);
+    await page.clock.fastForward(6000); assert.equal(await page.locator('#rest-timer-display').textContent(), '00:05');
+    await page.reload(); await page.locator('#rest-panel summary').click();
+    assert.equal(await page.locator('#rest-timer-display').textContent(), '00:05');
+    await page.click('#rest-timer-start'); await page.clock.fastForward(2000); await page.click('#rest-timer-pause');
     await page.click('#rest-timer-start'); await page.clock.fastForward(3000); assert.equal((await stored(page)).restTimerRunning, false); assert.equal((await stored(page)).restTimerRemainingSeconds, 0);
+    await page.click('#rest-timer-reset'); assert.equal(await page.locator('#rest-timer-display').textContent(), '00:05');
     await page.reload(); assert.equal((await stored(page)).restTimerRunning, false);
   });
 } finally {

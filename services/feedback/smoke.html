@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>回報服務連線驗證（開發用）</title>
+<style>body{font:16px/1.6 system-ui;max-width:640px;margin:24px auto;padding:16px}label,input{display:block}input{box-sizing:border-box;width:100%;padding:10px}button{margin:12px 8px 12px 0;padding:10px}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style>
+<h1>回報服務最小驗證</h1><p>僅傳送固定測試文字，不讀取訓練資料。重試同一編號不應多出一列。</p>
+<label for="endpoint">Apps Script 部署網址（/exec）</label><input id="endpoint" type="url" placeholder="https://script.google.com/macros/s/…/exec">
+<button id="send">送出測試</button><button id="new">換新測試編號</button><pre id="result" role="status"></pre>
+<script type="module">
+const output = document.querySelector('#result');
+let id = crypto.randomUUID();
+document.querySelector('#new').onclick = () => { id = crypto.randomUUID(); output.textContent = `新編號：${id}`; };
+document.querySelector('#send').onclick = async () => {
+  const endpoint = document.querySelector('#endpoint').value.trim();
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(endpoint)) { output.textContent = '請填入正式 /exec 部署網址。'; return; }
+  const buttons = [...document.querySelectorAll('button')]; buttons.forEach(b => b.disabled = true);
+  output.textContent = '送出中…';
+  try {
+    const response = await fetch(endpoint, { method: 'POST', mode: 'cors', credentials: 'omit', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, signal: AbortSignal.timeout(20000),
+      body: JSON.stringify({ id, title: '回報連線測試', body: '這是固定的開發測試內容，沒有訓練或聯絡資料。', version: 'feedback-smoke-v1' }) });
+    const result = await response.json();
+    if (!response.ok || result.ok !== true || result.id !== id) throw new Error('未取得相符的保存確認：' + JSON.stringify(result));
+    output.textContent = `服務已確認保存：${id}\n請到私人試算表核對一列，再按一次送出，確認沒有新增重複列。`;
+  } catch (error) {
+    output.textContent = `尚無法確認成功：${error.message}\n可能已寫入但回應遺失；請先查看試算表，再以同一編號重試。不可用 no-cors 略過這個問題。`;
+  } finally { buttons.forEach(b => b.disabled = false); }
+};
+</script></html>
