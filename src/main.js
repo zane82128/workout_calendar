@@ -1,5 +1,8 @@
 import { EXERCISE_CATEGORIES, DEFAULT_EXERCISE_CATEGORY } from './preset-exercises.js';
 import './theme.js';
+import { startFeedback } from './feedback.js';
+import { exerciseOrder, exerciseLabel } from './training.js';
+import { startTraining } from './training-ui.js';
 import { dateKey, parseDate, requirePastDate, comparison, complete, correct, validName, fourWeeks } from './records.js';
 import { createStore, STORAGE_KEY, StorageFailure } from './storage.js';
 import { createRestTimer, remaining, restConfig, timerLabel } from './rest-timer.js';
@@ -10,6 +13,7 @@ const store = createStore({ getItem: (key) => window.localStorage.getItem(key), 
 let data = { exercises: [], entries: [], completedEntries: [] };
 const view = { page: 'record', date: dateKey(), exerciseId: '', weightDirty: false, editId: null, deleteId: null, taskEditId: null };
 let toastId, timer, frozen = false, storageFailed = false;
+let training;
 const kg = (value) => value === null ? '尚無紀錄' : `${value} kg`;
 const shortDate = (key) => key.replaceAll('-', '/');
 
@@ -63,13 +67,13 @@ function activeExercises() {
   return data.exercises.filter((e) => !e.archived)
     .filter((e) => $('exercise-category-filter').value === 'all' || (e.category || DEFAULT_EXERCISE_CATEGORY) === $('exercise-category-filter').value)
     .filter((e) => e.name.toLowerCase().includes($('exercise-search').value.trim().toLowerCase()))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort(exerciseOrder);
 }
 function renderOptions(reset = false) {
   const exercises = activeExercises();
   if (!exercises.some((e) => e.id === view.exerciseId)) { view.exerciseId = exercises[0]?.id || ''; reset = true; }
   $('exercise-select').replaceChildren();
-  for (const e of exercises) { const option = node('option', `${e.name} · ${e.category || DEFAULT_EXERCISE_CATEGORY}`); option.value = e.id; $('exercise-select').append(option); }
+  for (const e of exercises) { const option = node('option', exerciseLabel(e)); option.value = e.id; $('exercise-select').append(option); }
   if (!exercises.length) { const option = node('option', '沒有符合的動作，請新增或恢復動作'); option.value = ''; $('exercise-select').append(option); }
   $('exercise-select').value = view.exerciseId;
   $('exercise-select').disabled = !exercises.length;
@@ -107,7 +111,8 @@ function selectDate(key) {
   hideToast();
   try { requirePastDate(key); } catch (error) { showError(error, 'entry'); $('schedule-date-input').value = view.date; return; }
   view.date = key; view.editId = null; view.deleteId = null; $('entry-error').hidden = true;
-  renderCalendar(); renderRecords(); renderComparison(true);
+  $('daily-set-status').textContent = '';
+  renderCalendar(); renderRecords(); renderComparison(true); training?.renderPending();
 }
 function renderRecords() {
   const list = $('completed-list'); list.replaceChildren();
@@ -154,10 +159,10 @@ function renderRecords() {
 }
 function renderTasks() {
   $('task-list').replaceChildren(); $('archived-list').replaceChildren();
-  for (const exercise of data.exercises.slice().sort((a, b) => a.name.localeCompare(b.name))) {
+  for (const exercise of data.exercises.slice().sort(exerciseOrder)) {
     const row = node('div', undefined, 'task-item'); row.dataset.id = exercise.id;
     const heading = node('div', undefined, 'row'), links = node('div', undefined, 'links');
-    heading.append(node('span', exercise.name));
+    heading.append(node('span', exerciseLabel(exercise)));
     if (!exercise.archived) links.append(button('改名', () => { view.taskEditId = exercise.id; renderTasks(); }));
     links.append(button(exercise.archived ? '恢復' : '封存', () => {
       if (transact((latest) => {
@@ -166,7 +171,7 @@ function renderTasks() {
         current.archived = !current.archived;
       }, 'task')) { view.taskEditId = null; refresh(); notify(exercise.archived ? '已恢復' : '已封存'); }
     }));
-    heading.append(links); row.append(heading, node('div', exercise.category || DEFAULT_EXERCISE_CATEGORY, 'muted'));
+    heading.append(links); row.append(heading);
     if (view.taskEditId === exercise.id && !exercise.archived) {
       const form = node('form', undefined, 'edit-box'); form.noValidate = true;
       const input = node('input'); input.id = 'task-edit-name'; input.value = exercise.name; input.setAttribute('aria-label', '動作名稱');
@@ -191,8 +196,10 @@ function setPage(page) {
   view.page = page === 'tasks' ? 'tasks' : 'record';
   for (const name of ['record', 'tasks']) { $(`${name}-page`).hidden = view.page !== name; $(`${name}-tab`).setAttribute('aria-selected', String(view.page === name)); }
 }
-function refresh() { renderCalendar(); renderOptions(); renderRecords(); renderTasks(); }
-function renderTimer(latest, alarmPlaying) {
+function refresh() { renderCalendar(); renderOptions(); renderRecords(); renderTasks(); training?.render(); }
+function renderTimer(latest, alarmPlaying, highlighted) {
+  $('rest-panel').classList.toggle('rest-finished', Boolean(highlighted));
+  $('rest-panel').querySelector('summary').textContent = highlighted ? '休息結束' : '休息倒數';
   const config = restConfig(latest);
   $('rest-timer-display').textContent = timerLabel(remaining(latest));
   for (const [id, value] of [['rest-timer-minutes', config.minutes], ['rest-timer-seconds', config.seconds]]) {
@@ -242,12 +249,17 @@ $('rest-timer-reset').onclick = timer.reset;
 for (const id of ['rest-timer-minutes', 'rest-timer-seconds']) $(id).onchange = () => timer.configure($('rest-timer-minutes').value, $('rest-timer-seconds').value);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderCalendar(); timer.update(); } });
 
+const feedback = startFeedback();
+training = startTraining({ getData: () => data, getDate: () => view.date, selectDate, transact, refresh,
+  choose: id => { $('exercise-category-filter').value = 'all'; $('exercise-search').value = ''; view.exerciseId = id; renderOptions(true); $('entry-weight').focus(); $('entry-weight').scrollIntoView({ block: 'center' }); } });
+training.render();
 function snapshot() {
   return {
     page: view.page, selectedDate: view.date, exerciseId: view.exerciseId, weightDirty: view.weightDirty,
     editId: view.editId, taskEditId: view.taskEditId,
+    training: training.snapshot(),
     details: Array.from(document.querySelectorAll('details[id]')).filter((d) => d.open).map((d) => d.id),
-    fields: Array.from(document.querySelectorAll('input[id],select[id]')).map((input) => ({ id: input.id, value: input.value })),
+    fields: Array.from(document.querySelectorAll('input[id],select[id]')).filter((input) => !input.id.startsWith('feedback-')).map((input) => ({ id: input.id, value: input.value })),
   };
 }
 try {
@@ -270,6 +282,7 @@ try {
     if (saved.taskDrafts?.[0] && $('task-edit-name')) { $('task-edit-name').value = saved.taskDrafts[0].name; $('task-edit-category').value = saved.taskDrafts[0].category; }
     for (const id of saved.details || []) if ($(id)) $(id).open = true;
     view.weightDirty = Boolean(saved.weightDirty);
+    training.restore(saved.training);
     sessionStorage.removeItem(UPDATE_SNAPSHOT_KEY);
   }
 } catch (error) { showError(new Error(`更新畫面無法還原：${error.message}`)); }
@@ -277,16 +290,18 @@ try {
 // Changes from other tabs are read before every write. Do not destroy local drafts.
 window.addEventListener('storage', (event) => {
   if (event.key !== STORAGE_KEY || frozen) return;
-  try { data = store.read(); renderCalendar(); renderComparison(); if (!view.editId) renderRecords(); if (!view.taskEditId) renderTasks(); }
+  try { data = store.read(); renderCalendar(); renderOptions(); if (!view.editId) renderRecords(); if (!view.taskEditId) renderTasks(); training.render(); }
   catch (error) { storageFailed = true; showError(error); }
 });
 startUpdateManager({
   save: () => {
     if (storageFailed) throw new Error('請先排除儲存錯誤再更新');
+    if (!feedback.canPrepare()) throw new Error('請等待回報送出完成，或排除草稿儲存問題');
+    feedback.persist();
     const latest = localStorage.getItem(STORAGE_KEY); store.read();
     if (latest !== null) localStorage.setItem(STORAGE_KEY, latest);
   },
   snapshot,
-  canPrepare: () => !storageFailed && !view.weightDirty && !$('task-input').value.trim() && !view.taskEditId && !view.editId && !store.read().restTimerRunning && !timer.playing(),
+  canPrepare: () => !training.dirty() && feedback.canPrepare() && !storageFailed && !view.weightDirty && !$('task-input').value.trim() && !view.taskEditId && !view.editId && !store.read().restTimerRunning && !timer.playing(),
   freeze: (value) => { frozen = value; $('app-root').inert = value; timer.freeze(value); },
 });

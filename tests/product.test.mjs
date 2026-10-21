@@ -34,6 +34,80 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('wo
 async function date(page, key) { await page.fill('#schedule-date-input', key); }
 async function finish(page, key, weight) { await date(page, key); await page.fill('#entry-weight', String(weight)); await page.click('#complete-button'); }
 try {
+  await scenario('分類筆畫排序、組合建立編輯、每日待做與完成分離', async (page) => {
+    const labels = await page.locator('#exercise-select option').allTextContents();
+    assert(labels.every(text => text.startsWith('胸 · ')));
+    await page.click('#tasks-tab'); await page.click('#manage-sets');
+    await page.fill('#set-name', '推日'); await page.locator('#set-choices-panel summary').click();
+    await page.check('#set-choices input[value="bench"]'); await page.check('#set-choices input[value="push"]');
+    await page.click('#set-save');
+    assert.equal((await stored(page)).trainingSets.length, 1);
+    await page.locator('#set-list button:text-is("編輯")').click();
+    await page.fill('#set-name', '推日修改'); await page.locator('#set-order .set-order-row').nth(1).locator('button:text-is("上移")').click();
+    await page.click('#set-save'); assert.deepEqual((await stored(page)).trainingSets[0].exerciseIds, ['push', 'bench']);
+    await page.click('#record-tab'); await page.locator('#daily-set-panel summary').click();
+    await page.click('#daily-set-add'); await page.click('#daily-set-add');
+    assert.equal((await stored(page)).plannedExercises.length, 2); assert.equal((await stored(page)).completedEntries.length, 0);
+    assert.equal(await page.locator('#pending-list .record-item').count(), 2);
+    await page.locator('#pending-list [data-id="bench"] button:text-is("記錄")').click();
+    await page.fill('#entry-weight', '40'); await page.click('#complete-button');
+    assert.equal(await page.locator('#pending-list .record-item').count(), 1); assert.equal((await stored(page)).completedEntries.length, 1);
+    await page.reload(); assert.equal(await page.locator('#pending-list .record-item').count(), 1);
+    await page.locator('#pending-list button:text-is("移除待做")').click();
+    assert.equal((await stored(page)).completedEntries.length, 1);
+    await page.click('#tasks-tab'); await page.locator('#task-list [data-id="push"] button:text-is("封存")').click();
+    await page.click('#record-tab'); await page.locator('#daily-set-panel summary').click(); await page.click('#daily-set-add');
+    assert((await page.locator('#daily-set-status').textContent()).includes('略過 1'));
+    await page.click('#tasks-tab'); await page.click('#manage-sets');
+    await page.locator('#set-list button:text-is("刪除組合")').click(); await page.locator('#set-list button:text-is("確認刪除")').click();
+    assert.equal((await stored(page)).trainingSets.length, 0); assert.equal((await stored(page)).completedEntries.length, 1);
+  });
+  await scenario('休息入口到期橘色十秒，開始與重置立即清除', async (page) => {
+    await page.evaluate(() => { window.AudioContext = undefined; window.webkitAudioContext = undefined; });
+    await page.clock.install({ time: new Date('2026-10-20T04:00:00Z') }); await page.clock.pauseAt(new Date('2026-10-20T04:00:01Z'));
+    await page.locator('#rest-panel summary').click(); await page.fill('#rest-timer-minutes', '0'); await page.fill('#rest-timer-seconds', '2');
+    await page.click('#rest-timer-start'); await page.locator('#rest-panel summary').click();
+    await page.clock.fastForward(2000);
+    const orange = () => page.locator('#rest-panel').evaluate(e => e.classList.contains('rest-finished'));
+    assert(await orange()); assert.equal(await page.locator('#rest-panel summary').textContent(), '休息結束');
+    await page.clock.fastForward(9999); assert(await orange()); await page.clock.fastForward(1); assert.equal(await orange(), false);
+    await page.locator('#rest-panel summary').click(); await page.click('#rest-timer-start'); await page.clock.fastForward(2000); assert(await orange());
+    await page.click('#rest-timer-reset'); assert.equal(await orange(), false);
+    await page.click('#rest-timer-start'); await page.clock.fastForward(2000); assert(await orange());
+    await page.click('#rest-timer-start'); assert.equal(await orange(), false);
+  });
+  await scenario('回報表單：驗證、離線草稿、失敗重試編號及成功確認', async (page, context) => {
+    const before = await stored(page), requests = [];
+    let mode = 'failure';
+    await page.route('https://script.google.com/macros/s/**/exec', async (route) => {
+      const payload = route.request().postDataJSON(); requests.push(payload);
+      if (mode === 'failure') return route.abort('failed');
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ ok: true, id: mode === 'wrong-id' ? 'wrong' : payload.id }) });
+    });
+    await page.locator('#feedback-panel summary').click();
+    await page.click('#feedback-send'); assert.equal(requests.length, 0);
+    await page.fill('#feedback-title', '測試主旨'); await page.fill('#feedback-body', '測試問題內容');
+    await context.setOffline(true); await page.click('#feedback-send');
+    assert((await page.locator('#feedback-status').textContent()).includes('離線')); assert.equal(requests.length, 0);
+    await context.setOffline(false); await page.reload();
+    await page.locator('#feedback-panel summary').click();
+    assert.equal(await page.inputValue('#feedback-body'), '測試問題內容');
+    await page.click('#feedback-send');
+    await page.waitForFunction(() => document.getElementById('feedback-status').textContent.includes('尚無法確認'));
+    assert.equal(await page.inputValue('#feedback-body'), '測試問題內容');
+    const id = requests[0].id;
+    await page.reload(); await page.locator('#feedback-panel summary').click();
+    mode = 'wrong-id'; await page.click('#feedback-send');
+    await page.waitForFunction(() => document.getElementById('feedback-status').textContent.includes('尚無法確認'));
+    assert.equal(requests[1].id, id); assert.equal(await page.inputValue('#feedback-title'), '測試主旨');
+    mode = 'success'; await page.click('#feedback-send');
+    await page.waitForFunction(() => document.getElementById('feedback-status').textContent.startsWith('已送出'));
+    assert.equal(requests[2].id, id); assert.equal(await page.inputValue('#feedback-body'), '');
+    assert.deepEqual(Object.keys(requests[2]).sort(), ['body', 'id', 'title', 'version']);
+    assert.equal(await page.evaluate(() => sessionStorage.getItem('workoutCalendar.feedbackDraft')), null);
+    assert.deepEqual(await stored(page), before);
+  });
   await scenario('雙主題、系統同步、偏好保存、離線字型與資料隔離', async (page, context) => {
     await page.evaluate(() => document.fonts.ready);
     assert(await page.evaluate(() => document.fonts.check('18px "Fusion Pixel"', '訓練深蹲重量')));

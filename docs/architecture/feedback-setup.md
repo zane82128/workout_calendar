@@ -1,5 +1,7 @@
 # 回報接收服務：Google Apps Script 最小驗證
 
+最新進度：App 已加入「回報問題」表單並使用目前 /exec，候選 2026.10.21.3 已本地收到真實保存確認；App 尚未發布。原型限制段落中尚未整合的表單／草稿／更新保護，已由 src/feedback.js 與 main.js 接上；仍未增加管理狀態、送出冷卻或完整反濫用服務。驗收見 [表單紀錄](../validation/2026-10-21-feedback-ui.md)。
+
 狀態：2026-10-21 本地原型；沒有建立線上服務、沒有正式 App 回報入口，也未驗證 Google 跨站回應。使用者選擇小型免費方案、不收聯絡資料。既有 GitHub Pages 部署不變。
 
 後續進度：使用者已自行部署並提供 /exec；隔離 Chromium 從 localhost 及正式 github.io origin 均收到可讀的成功與重試確認，見 [實測紀錄](../validation/2026-10-21-feedback-prototype.md)。私人表格列數待擁有者確認；正式 App 入口尚未整合。

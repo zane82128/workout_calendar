@@ -9,7 +9,9 @@ export function remaining(data, now = Date.now()) {
 export const timerLabel = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 
 export function createRestTimer({ store, render, message, failure }) {
-  let tickId, audio, alarmId, alarmEnd, frozen = false;
+  let tickId, audio, alarmId, alarmEnd, highlightEnd, highlightUntil = 0, frozen = false;
+  function clearHighlight() { clearTimeout(highlightEnd); highlightUntil = 0; }
+  function highlight() { clearHighlight(); highlightUntil = Date.now() + 10000; highlightEnd = setTimeout(update, 10000); }
   const voices = new Set();
   const playing = () => alarmId !== undefined;
   function stopAlarm() {
@@ -53,12 +55,13 @@ export function createRestTimer({ store, render, message, failure }) {
             latest.restTimerRunning = false; latest.restTimerRemainingSeconds = 0; completed = true;
           }
         });
-        if (completed) { message('休息結束'); alarm(); }
+        if (completed) { message('休息結束'); alarm(); highlight(); }
       }
-      render(data, playing());
+      render(data, playing(), Date.now() < highlightUntil);
     } catch (error) { failure(error); }
   }
   function start() {
+    clearHighlight();
     stopAlarm();
     // Audio unlock must originate in a gesture; failure must not prevent timing.
     unlock().catch(() => message('此瀏覽器暫時無法播放鈴聲'));
@@ -91,6 +94,7 @@ export function createRestTimer({ store, render, message, failure }) {
     } catch (error) { failure(error); }
   }
   function reset() {
+    clearHighlight();
     stopAlarm();
     try {
       store.transaction((data) => {
@@ -108,5 +112,5 @@ export function createRestTimer({ store, render, message, failure }) {
   }
   tickId = setInterval(update, 1000);
   update();
-  return { start, pause, reset, configure, update, freeze, playing, dispose: () => { clearInterval(tickId); stopAlarm(); } };
+  return { start, pause, reset, configure, update, freeze, playing, dispose: () => { clearInterval(tickId); stopAlarm(); clearHighlight(); } };
 }

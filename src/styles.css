@@ -59,6 +59,18 @@ summary { padding: 9px 0; min-height: 44px; cursor: pointer; }
 @media(prefers-reduced-motion:reduce) { .toast { animation: none; } }
 @media(max-width:360px) { main,header { padding-left: 14px; padding-right: 14px; } nav { padding-left: 14px; padding-right: 14px; } }
 [hidden] { display: none !important; }
+textarea { display:block; width:100%; min-width:0; resize:vertical; font:inherit; font-size:16px; color:var(--text); background:var(--surface); border:2px solid var(--line); border-radius:0; padding:8px; }
+textarea:focus-visible { outline:2px solid var(--orange); outline-offset:3px; }
+#feedback-status { overflow-wrap:anywhere; }
+.management-switch { justify-content:flex-start; margin-bottom:14px; }
+.management-switch [aria-pressed='true'] { border-color:var(--gold); color:var(--text); background:var(--soft); }
+#set-choices { max-height:320px; overflow:auto; }
+#set-choices label { display:flex; gap:10px; align-items:center; min-height:44px; }
+#set-choices input { width:20px; min-height:20px; height:20px; flex-shrink:0; }
+.set-order-row { border-bottom:1px solid var(--line); padding:6px 0; overflow-wrap:anywhere; }
+#daily-set-form select { width:auto; }
+#rest-panel.rest-finished { background:#c95c13; border-color:#ffbd69; color:#fff; box-shadow:inset 2px 2px 0 #ffbd69; }
+#rest-panel.rest-finished summary { color:#fff; }
 
 @font-face { font-family: 'Fusion Pixel'; src: url('./fonts/fusion-pixel-tw.woff2') format('woff2'); font-weight:400; font-display:swap; }
 :root,[data-theme='light'] { color-scheme:light; --bg:#d7cbb4; --surface:#f5e7c9; --text:#352819; --muted:#705c40; --line:#a17a46; --soft:#ecdbb7; --primary:#355d35; --primary-text:#fff6dd; --orange:#8d450d; --orange-bg:#f5cf8b; --danger:#a12e26; --edge:#624324; --shine:#fff7df; --gold:#c29a52; font:18px/1.55 'Fusion Pixel',system-ui,sans-serif; font-synthesis:none; }

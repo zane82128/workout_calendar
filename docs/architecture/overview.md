@@ -1,5 +1,15 @@
 # 系統與資料的白話說明
 
+## 組合、待做與到期提示（2026-10-21）
+
+`training.js` 提供明確指定 `zh-Hant-TW-u-co-stroke` 的類內排序、分類前綴、組合與匯入規則；`training-ui.js` 只操作 DOM 並透過原 store 交易，記錄頁仍由 main.js 負責重量。新增可選 `trainingSets`（id/name/exerciseIds）與 `plannedExercises`（dateKey/exerciseId/exerciseName/category），都在原 workoutCalendar.v1 中；是可選加法欄位，schema/dataVersion 仍為 2，已知 v2 修復來源會保留未知欄位。不得回退會丟未知欄位的原始 v1 版。
+
+decode 驗證新欄位，舊資料缺欄位仍可讀；第一次寫入任一新欄位前保存原字串至 `workoutCalendar.backup.beforeTrainingSets`，備份失敗不寫新資料。這仍是會隨網站資料清除的本地副本，不是外部備份。待做項目不轉為 completedEntries；顯示時排除當日已有完成的同動作，所以刪成績後原待做可再次顯示。組合動作參照穩定 ID，每日清單另外存名稱／類別快照。
+
+更新快照新增 training 編輯 ID／名稱／勾選順序／管理子頁，其他分頁有組合草稿時 canPrepare 阻擋靜默更新；明確套用的本頁可保存及還原快照。rest-timer.js 以獨立十秒期限控制本頁視覺，與最多一分鐘音效分離，renderTimer 更新 class 與 summary，無資料格式變更。視覺提示不跨重載重播。既有 localStorage 同時編輯衝突限制仍存在。
+
+回報整合進度（2026-10-21）：src/feedback.js 管理表單，指向使用者提供的公開 Apps Script /exec（不是密鑰）。POST 僅含 id/title/body/version，text/plain JSON、cors、omit credentials，20 秒逾時。sessionStorage 的 workoutCalendar.feedbackDraft 保存文字及待確認 request，與訓練 localStorage 分離；成功後清除。更新 snapshot 排除回報欄位，避免舊 snapshot 重填已送出的草稿；更新 save 持久化本分頁草稿，canPrepare 在送出中或草稿保存錯誤時拒絕更新。其餘測試不真送回報，以攔截回應驗證狀態。Apps Script 不納入離線快取，離線不排隊自動送出。
+
 回報原型（2026-10-21）：services/feedback/Code.gs 獨立部署到 Apps Script，擁有者授權寫入私人 Reports 試算表；不打包到 App。tools/feedback-preview.mjs 僅在 localhost 提供開發連線頁。原型使用可讀回應的跨站 POST 與持久編號去重，鎖定寫入後 flush 才回 ok；瀏覽器遇到未知結果不宣稱成功。尚無真實 /exec、線上跨站驗收或 src/ 整合，現行訓練資料流不變。見 [設定](feedback-setup.md)。
 
 休息重置（2026-10-21）：rest-timer.js 新增 reset，先停止本頁音訊，再以現有 store.transaction 將剩餘秒數設為 restConfig 總秒數、running=false、startedAt=null。沿用原格式與資料櫃，不新增服務或遷移。其他分頁已在播放的音訊沒有新增跨頁停止協定。

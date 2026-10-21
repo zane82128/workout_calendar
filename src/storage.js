@@ -1,8 +1,10 @@
 import { PRESET_EXERCISES, PRESET_VERSION } from './preset-exercises.js';
 import { parseDate, weightValue } from './records.js';
+import { validateTraining } from './training.js';
 
 export const STORAGE_KEY = 'workoutCalendar.v1';
 export const BACKUP_KEY = 'workoutCalendar.backup.beforeWeightV2';
+export const TRAINING_BACKUP_KEY = 'workoutCalendar.backup.beforeTrainingSets';
 export const DATA_VERSION = 2;
 export class StorageFailure extends Error {}
 
@@ -10,7 +12,7 @@ export function decode(raw) {
   const data = raw === null ? {} : JSON.parse(raw);
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('儲存資料格式不正確，原資料未修改');
   if (data.schemaVersion !== undefined && (!Number.isInteger(data.schemaVersion) || data.schemaVersion > DATA_VERSION)) throw new Error('此資料需要較新的 App，請先更新');
-  for (const key of ['exercises', 'entries', 'completedEntries']) {
+  for (const key of ['exercises', 'entries', 'completedEntries', 'trainingSets', 'plannedExercises']) {
     if (data[key] !== undefined && !Array.isArray(data[key])) throw new Error('紀錄格式不正確，原資料未修改');
   }
   const result = { ...data, exercises: data.exercises || [], entries: data.entries || [], completedEntries: data.completedEntries || [] };
@@ -27,6 +29,7 @@ export function decode(raw) {
     if (days.has(key) || ids.has(r.id)) throw new Error('完成紀錄重複，原資料未修改');
     days.add(key); ids.add(r.id);
   }
+  validateTraining(result);
   return result;
 }
 
@@ -45,6 +48,11 @@ export function createStore(storage) {
     data.schemaVersion = DATA_VERSION;
     const serialized = JSON.stringify(data);
     access(() => decode(serialized));
+    if (raw !== null) {
+      const previous = JSON.parse(raw);
+      const addsTraining = ['trainingSets', 'plannedExercises'].some(key => previous[key] === undefined && data[key] !== undefined);
+      if (addsTraining && access(() => storage.getItem(TRAINING_BACKUP_KEY)) === null) access(() => storage.setItem(TRAINING_BACKUP_KEY, raw));
+    }
     access(() => storage.setItem(STORAGE_KEY, serialized));
     return data;
   }

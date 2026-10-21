@@ -192,6 +192,8 @@ release ID 由發版時明確指定，工具檢查格式與重複；CI 使用相
 
 ### 實作備註
 
+- 2026-10-21 組合／待做採可選加法欄位，dataVersion 仍為 2；首次加入欄位前備份至 workoutCalendar.backup.beforeTrainingSets。發版須驗證組合、待做與草稿升級保留，不把待做轉為完成。npm run release 已包含 training 與 feedback-service 單元測試，不需另手動重複執行；Android 實機清單須加上休息入口十秒變色及組合匯入。
+
 - 2026-10-20 重量改版已將格式提升至 v2，詳見 [驗收與遷移紀錄](../validation/2026-10-20-weight-records.md)。下列初版 v1 記載屬歷史背景；目前發布須使用支援 completedEntries 的版本，不直接回退至會丟棄新欄位的舊四頁 App。
 - `npm run release` 現在依序執行資料規則、產品操作及升級測試；GitHub artifact 收錄兩份瀏覽器結果。單獨執行 `test:unit`、`test:product`、`test:update` 可定位失敗，不需手動各跑一次才能發版。
 
