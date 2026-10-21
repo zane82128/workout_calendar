@@ -24,22 +24,62 @@ async function scenario(name, fn, initial = seed) {
     const page = await context.newPage(); await page.clock.setFixedTime(new Date('2026-10-20T04:00:00Z'));
     await page.goto(url); await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
     // Scenarios start with a known exercise identity, not the locale-dependent first option.
-    await page.selectOption('#exercise-select', 'bench');
+    await selectExercise(page, 'bench');
     await fn(page, context); assert.deepEqual(errors, []);
     results.push({ name, passed: true }); console.log(`PASS ${name}`);
   } catch (error) { results.push({ name, passed: false, error: error.stack }); throw error; }
   finally { await context.close(); }
 }
 const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('workoutCalendar.v1')));
+async function selectExercise(page, id) {
+  const label = await page.locator(`#exercise-select option[value="${id}"]`).textContent();
+  await page.click('#open-exercise-picker'); await page.fill('#exercise-search', label.split(' · ').slice(1).join(' · '));
+  await page.locator(`#exercise-picker-results [data-exercise-id="${id}"]`).click();
+}
+async function reveal(locator) { await locator.evaluate(e => { for (let p = e.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true; }); }
 async function date(page, key) { await page.fill('#schedule-date-input', key); }
 async function finish(page, key, weight) { await date(page, key); await page.fill('#entry-weight', String(weight)); await page.click('#complete-button'); }
 try {
+  await scenario('三處分類收合、搜尋取消不改重量、組合跨分類勾選保留', async (page) => {
+    await page.fill('#entry-weight', '37.5');
+    await page.click('#open-exercise-picker');
+    assert(await page.locator('#exercise-picker').isVisible());
+    assert(await page.locator('#exercise-picker-results details[data-category="胸"]').evaluate(e => e.open));
+    await page.fill('#exercise-search', '引體');
+    assert.equal(await page.locator('#exercise-picker-results .exercise-choice').count(), 1);
+    assert.equal(await page.inputValue('#exercise-select'), 'bench');
+    assert.equal(await page.inputValue('#entry-weight'), '37.5');
+    await page.keyboard.press('Escape'); assert(await page.locator('#exercise-picker').isHidden());
+    assert.equal(await page.inputValue('#entry-weight'), '37.5');
+    await selectExercise(page, 'pull');
+    assert((await page.locator('#selected-exercise').textContent()).includes('背 · 引體向上'));
+    await page.click('#open-exercise-picker'); await page.fill('#exercise-search', '沒有這個動作');
+    assert(await page.locator('#exercise-picker-empty').isVisible()); await page.click('#close-exercise-picker');
+    await page.click('#tasks-tab');
+    assert(await page.locator('#task-input').isHidden());
+    assert.equal(await page.locator('#task-list > details[open]').count(), 0);
+    const chest = page.locator('#task-list > details[data-category="胸"]');
+    await chest.locator(':scope > summary').click();
+    const task = chest.locator('[data-id="bench"]');
+    assert.equal(await task.locator('.row > span').first().textContent(), '平板臥推');
+    assert(await task.locator('button:text-is("改名")').isHidden());
+    await task.locator('.exercise-actions > summary').click(); assert(await task.locator('button:text-is("改名")').isVisible());
+    await page.locator('#add-exercise-panel > summary').focus(); await page.keyboard.press('Enter'); assert(await page.locator('#task-input').isVisible());
+    await page.click('#manage-sets'); await page.fill('#set-name', '跨分類 TEST'); await page.locator('#set-choices-panel > summary').click();
+    const setChest = page.locator('#set-choices details[data-category="胸"]'), setBack = page.locator('#set-choices details[data-category="背"]');
+    assert.equal(await page.locator('#set-choices details[open]').count(), 0);
+    await setChest.locator(':scope > summary').click(); await page.check('#set-choices input[value="bench"]');
+    await setChest.locator(':scope > summary').click(); await setBack.locator(':scope > summary').click(); await page.check('#set-choices input[value="pull"]');
+    await setChest.locator(':scope > summary').click(); assert(await page.isChecked('#set-choices input[value="bench"]'));
+    assert((await setChest.locator(':scope > summary').textContent()).includes('已選 1'));
+    await page.click('#set-save'); assert.deepEqual((await stored(page)).trainingSets[0].exerciseIds, ['bench', 'pull']);
+  }, { ...seed, exercises: [...seed.exercises, { id: 'pull', name: '引體向上', category: '背' }] });
   await scenario('分類筆畫排序、組合建立編輯、每日待做與完成分離', async (page) => {
     const labels = await page.locator('#exercise-select option').allTextContents();
     assert(labels.every(text => text.startsWith('胸 · ')));
     await page.click('#tasks-tab'); await page.click('#manage-sets');
-    await page.fill('#set-name', '推日'); await page.locator('#set-choices-panel summary').click();
-    await page.check('#set-choices input[value="bench"]'); await page.check('#set-choices input[value="push"]');
+    await page.fill('#set-name', '推日'); await page.locator('#set-choices-panel > summary').click();
+    await reveal(page.locator('#set-choices input[value="bench"]')); await page.check('#set-choices input[value="bench"]'); await page.check('#set-choices input[value="push"]');
     await page.click('#set-save');
     assert.equal((await stored(page)).trainingSets.length, 1);
     await page.locator('#set-list button:text-is("編輯")').click();
@@ -55,7 +95,7 @@ try {
     await page.reload(); assert.equal(await page.locator('#pending-list .record-item').count(), 1);
     await page.locator('#pending-list button:text-is("移除待做")').click();
     assert.equal((await stored(page)).completedEntries.length, 1);
-    await page.click('#tasks-tab'); await page.locator('#task-list [data-id="push"] button:text-is("封存")').click();
+    await page.click('#tasks-tab'); await reveal(page.locator('#task-list [data-id="push"] button:text-is("封存")')); await page.locator('#task-list [data-id="push"] button:text-is("封存")').click();
     await page.click('#record-tab'); await page.locator('#daily-set-panel summary').click(); await page.click('#daily-set-add');
     assert((await page.locator('#daily-set-status').textContent()).includes('略過 1'));
     await page.click('#tasks-tab'); await page.click('#manage-sets');
@@ -126,7 +166,7 @@ try {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.screenshot({ path: path.join(folder, `theme-${mode}.png`), fullPage: true });
       await page.click('#tasks-tab');
-      assert(await page.locator('#task-input').isVisible());
+      assert(await page.locator('#add-exercise-panel summary').isVisible());
       await page.click('#record-tab');
     }
     await page.selectOption('#theme-select', 'system');
@@ -168,7 +208,7 @@ try {
     assert.equal(await page.locator('#highest-weight').textContent(), '尚無紀錄');
   });
   await scenario('0 kg、空白／負數／未來拒絕，不產生假成功', async (page) => {
-    await page.selectOption('#exercise-select', 'push'); assert.equal(await page.inputValue('#entry-weight'), '');
+    await selectExercise(page, 'push'); assert.equal(await page.inputValue('#entry-weight'), '');
     await page.click('#complete-button'); assert(await page.locator('#entry-error').isVisible()); assert.equal((await stored(page)).completedEntries.length, 0);
     await page.fill('#entry-weight', '-1'); await page.click('#complete-button'); assert.equal((await stored(page)).completedEntries.length, 0);
     await page.fill('#entry-weight', '0'); await page.click('#complete-button'); assert.equal((await stored(page)).completedEntries[0].weight, 0);
@@ -179,10 +219,10 @@ try {
   });
   await scenario('封存恢復及改名保持身份與歷史名稱', async (page) => {
     await finish(page, '2026-10-01', 40); await page.click('#tasks-tab');
-    const task = page.locator('#task-list [data-id="bench"]'); await task.locator('button:text-is("改名")').click(); await page.fill('#task-edit-name', '新臥推'); await task.locator('button:text-is("儲存")').click();
-    await task.locator('button:text-is("封存")').click(); assert.equal(await page.locator('#exercise-select option[value="bench"]').count(), 0);
-    await page.locator('#archived-panel summary').click(); await page.locator('#archived-list [data-id="bench"] button').click();
-    await page.click('#record-tab'); await page.selectOption('#exercise-select', 'bench'); await finish(page, '2026-10-02', 45);
+    const task = page.locator('#task-list [data-id="bench"]'); await reveal(task.locator('button:text-is("改名")')); await task.locator('button:text-is("改名")').click(); await page.fill('#task-edit-name', '新臥推'); await task.locator('button:text-is("儲存")').click();
+    await reveal(task.locator('button:text-is("封存")')); await task.locator('button:text-is("封存")').click(); assert.equal(await page.locator('#exercise-select option[value="bench"]').count(), 0);
+    await reveal(page.locator('#archived-list [data-id="bench"] button')); await page.locator('#archived-list [data-id="bench"] button').click();
+    await page.click('#record-tab'); await selectExercise(page, 'bench'); await finish(page, '2026-10-02', 45);
     const data = await stored(page); assert.equal(data.completedEntries[0].exerciseName, '平板臥推'); assert.equal(data.completedEntries[1].exerciseName, '新臥推'); assert.equal(await page.locator('#highest-weight').textContent(), '45 kg');
   });
   await scenario('儲存失敗不改畫面或資料，不顯示完成', async (page) => {

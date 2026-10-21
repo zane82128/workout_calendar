@@ -83,6 +83,7 @@ try {
     await page.click('#tasks-tab'); await page.click('#manage-sets');
     await page.fill('#set-name', '升級保留的組合');
     await page.locator('#set-choices-panel').evaluate(e => e.open = true);
+    await page.locator('#set-choices input').first().evaluate(e => { e.closest('.exercise-group').open = true; });
     await page.locator('#set-choices input').first().check(); await page.click('#set-save');
     await page.fill('#set-name', '未儲存的組合草稿');
     await page.locator('#set-choices input').first().check();
@@ -143,7 +144,9 @@ try {
     const ctx = await context();
     const page = await install(ctx);
     await page.click('#tasks-tab');
+    await page.locator('#add-exercise-panel').evaluate(e => e.open = true);
     await page.fill('#task-input', '尚未送出的動作');
+    await page.locator('#task-list button:text-is("改名")').first().evaluate(e => { for (let p = e.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true; });
     await page.locator('#task-list button:text-is("改名")').first().click();
     await page.fill('#task-edit-name', '尚未儲存的名稱');
     serving = B.output;
@@ -211,6 +214,7 @@ try {
     const second = await ctx.newPage();
     await second.goto(url);
     await second.click('#tasks-tab');
+    await second.locator('#add-exercise-panel').evaluate(e => e.open = true);
     await second.fill('#task-input', '尚未新增的動作');
     serving = B.output;
     await ready(first);
@@ -229,6 +233,7 @@ try {
     const second = await ctx.newPage();
     await second.goto(url);
     await second.click('#tasks-tab');
+    await second.locator('#add-exercise-panel').evaluate(e => e.open = true);
     await second.fill('#task-input', '另一分頁剛儲存的動作');
     await second.click('#task-form button[type="submit"]');
     serving = B.output;

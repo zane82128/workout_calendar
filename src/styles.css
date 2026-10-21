@@ -62,6 +62,27 @@ summary { padding: 9px 0; min-height: 44px; cursor: pointer; }
 textarea { display:block; width:100%; min-width:0; resize:vertical; font:inherit; font-size:16px; color:var(--text); background:var(--surface); border:2px solid var(--line); border-radius:0; padding:8px; }
 textarea:focus-visible { outline:2px solid var(--orange); outline-offset:3px; }
 #feedback-status { overflow-wrap:anywhere; }
+.exercise-group { margin-top:8px; border:1px solid var(--line); background:var(--surface); }
+.exercise-group>summary { padding:10px; min-height:44px; }
+.group-count { float:right; margin-left:12px; }
+.exercise-group-content { padding:0 10px 8px; }
+.exercise-group .task-item { border:0; border-top:1px solid var(--line); margin:0; padding:4px 0; }
+.exercise-group .task-item:last-child { border-bottom:0; }
+.exercise-group .task-item>.row { flex-wrap:nowrap; }
+.exercise-group .task-item>.row>span { min-width:0; flex:1; }
+.exercise-actions { position:relative; margin:0; flex-shrink:0; }
+.exercise-actions>summary { width:44px; min-height:44px; text-align:center; padding:5px; font-size:22px; list-style:none; }
+.exercise-actions>summary::-webkit-details-marker { display:none; }
+.exercise-actions>.links { position:absolute; right:0; top:44px; z-index:6; min-width:108px; background:var(--surface); border:2px solid var(--line); padding:4px 10px; box-shadow:3px 3px 0 var(--edge); display:flex; flex-direction:column; gap:0; }
+.exercise-actions>.links button { text-align:left; text-decoration:none; }
+.exercise-picker-heading button { min-height:44px; }
+.selected-exercise { margin:4px 0 12px; color:var(--muted); }
+#exercise-picker { color:var(--text); background:var(--surface); border:3px solid var(--gold); width:calc(100% - 24px); max-width:500px; max-height:calc(100dvh - 32px); padding:16px; overflow:auto; }
+#exercise-picker::backdrop { background:#0009; }
+.exercise-choice { display:block; width:100%; text-align:left; margin-top:4px; border:0; box-shadow:none; background:none; overflow-wrap:anywhere; }
+.exercise-choice[aria-pressed='true'] { background:var(--soft); border-left:3px solid var(--gold); }
+#add-exercise-panel { margin-bottom:12px; }
+#set-choices .exercise-group-content label { margin:0; padding:4px 0; }
 .management-switch { justify-content:flex-start; margin-bottom:14px; }
 .management-switch [aria-pressed='true'] { border-color:var(--gold); color:var(--text); background:var(--soft); }
 #set-choices { max-height:320px; overflow:auto; }

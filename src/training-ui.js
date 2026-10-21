@@ -1,5 +1,6 @@
 import { exerciseOrder, exerciseLabel, saveSet, importSet } from './training.js';
 import { dateKey } from './records.js';
+import { renderExerciseGroups } from './exercise-groups.js';
 
 export function startTraining({ getData, getDate, selectDate, transact, refresh, choose }) {
   const $ = id => document.getElementById(id);
@@ -10,12 +11,15 @@ export function startTraining({ getData, getDate, selectDate, transact, refresh,
   function clear() { editing = null; selected = []; dirty = false; $('set-name').value = ''; $('set-save').textContent = '儲存組合'; render(); }
   function renderChoices() {
     const active = getData().exercises.filter(e => !e.archived).sort(exerciseOrder);
-    $('set-choices').replaceChildren();
-    for (const e of active) {
+    renderExerciseGroups($('set-choices'), active, { prefix: 'set-group', selected, renderRow: e => {
       const row = el('label'); const input = el('input'); input.type = 'checkbox'; input.value = e.id; input.checked = selected.includes(e.id);
-      input.onchange = () => { dirty = true; selected = input.checked ? [...selected, e.id] : selected.filter(id => id !== e.id); renderSequence(); };
-      row.append(input, el('span', exerciseLabel(e))); $('set-choices').append(row);
-    }
+      input.onchange = () => {
+        dirty = true; selected = input.checked ? [...selected, e.id] : selected.filter(id => id !== e.id); renderSequence();
+        const group = input.closest('.exercise-group');
+        group.querySelector('.group-count').textContent = `${group.querySelectorAll('input').length} 個${group.querySelectorAll('input:checked').length ? ` · 已選 ${group.querySelectorAll('input:checked').length}` : ''}`;
+      };
+      row.append(input, el('span', e.name)); return row;
+    } });
     renderSequence();
   }
   function renderSequence() {

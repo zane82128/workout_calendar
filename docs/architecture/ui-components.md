@@ -1,5 +1,7 @@
 # UI 元件命名與標註圖
 
+2026-10-22：「Exercise Select」的可見入口改為 #open-exercise-picker 按鈕，內部 #exercise-select 隱藏保留快照相容。分類由 .exercise-group 呈現，管理以 .exercise-actions 的 summary 展開操作，新增表單製圖需開啟 #add-exercise-panel。不再使用長選單作為紀錄頁的操作入口。
+
 命名採 `Page > Section > Element`，既有元件名稱沿用，不因整理資料夾而改名。標註圖為可重新產生的工具產物，不是正式規格或用戶資料。`docs/ui_component_maps/` 只放這些圖片；設定與程式仍在 `tools/`。
 
 ### 舊版 Schedule 名稱對照（歷史參考）

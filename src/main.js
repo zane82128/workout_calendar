@@ -3,6 +3,7 @@ import './theme.js';
 import { startFeedback } from './feedback.js';
 import { exerciseOrder, exerciseLabel } from './training.js';
 import { startTraining } from './training-ui.js';
+import { renderExerciseGroups } from './exercise-groups.js';
 import { dateKey, parseDate, requirePastDate, comparison, complete, correct, validName, fourWeeks } from './records.js';
 import { createStore, STORAGE_KEY, StorageFailure } from './storage.js';
 import { createRestTimer, remaining, restConfig, timerLabel } from './rest-timer.js';
@@ -65,9 +66,25 @@ function categories(select, all = false) {
 }
 function activeExercises() {
   return data.exercises.filter((e) => !e.archived)
-    .filter((e) => $('exercise-category-filter').value === 'all' || (e.category || DEFAULT_EXERCISE_CATEGORY) === $('exercise-category-filter').value)
-    .filter((e) => e.name.toLowerCase().includes($('exercise-search').value.trim().toLowerCase()))
     .sort(exerciseOrder);
+}
+function renderPicker(openCurrent = false) {
+  const query = $('exercise-search').value.trim().toLowerCase();
+  const exercises = activeExercises().filter(e => e.name.toLowerCase().includes(query) || (e.category || DEFAULT_EXERCISE_CATEGORY).includes(query));
+  const results = $('exercise-picker-results');
+  const row = e => {
+    const choice = button(query ? exerciseLabel(e) : e.name, () => chooseExercise(e.id), 'exercise-choice');
+    choice.dataset.exerciseId = e.id; choice.setAttribute('aria-pressed', String(e.id === view.exerciseId)); return choice;
+  };
+  if (query) results.replaceChildren(...exercises.map(row));
+  else renderExerciseGroups(results, exercises, { prefix: 'picker-group', renderRow: row,
+    openCategory: openCurrent ? data.exercises.find(e => e.id === view.exerciseId)?.category || DEFAULT_EXERCISE_CATEGORY : undefined });
+  $('exercise-picker-empty').hidden = Boolean(exercises.length);
+}
+function chooseExercise(id) {
+  if (!data.exercises.some(e => e.id === id && !e.archived)) return;
+  view.exerciseId = id; renderOptions(true);
+  if ($('exercise-picker').open) $('exercise-picker').close();
 }
 function renderOptions(reset = false) {
   const exercises = activeExercises();
@@ -78,6 +95,9 @@ function renderOptions(reset = false) {
   $('exercise-select').value = view.exerciseId;
   $('exercise-select').disabled = !exercises.length;
   $('complete-button').disabled = !exercises.length;
+  $('selected-exercise').textContent = data.exercises.find(e => e.id === view.exerciseId) ? exerciseLabel(data.exercises.find(e => e.id === view.exerciseId)) : '請先新增或恢復動作';
+  $('open-exercise-picker').disabled = !exercises.length;
+  if ($('exercise-picker').open) renderPicker();
   renderComparison(reset);
 }
 function renderComparison(reset = false) {
@@ -158,11 +178,10 @@ function renderRecords() {
   }
 }
 function renderTasks() {
-  $('task-list').replaceChildren(); $('archived-list').replaceChildren();
-  for (const exercise of data.exercises.slice().sort(exerciseOrder)) {
+  function taskRow(exercise) {
     const row = node('div', undefined, 'task-item'); row.dataset.id = exercise.id;
     const heading = node('div', undefined, 'row'), links = node('div', undefined, 'links');
-    heading.append(node('span', exerciseLabel(exercise)));
+    heading.append(node('span', exercise.name));
     if (!exercise.archived) links.append(button('改名', () => { view.taskEditId = exercise.id; renderTasks(); }));
     links.append(button(exercise.archived ? '恢復' : '封存', () => {
       if (transact((latest) => {
@@ -171,7 +190,10 @@ function renderTasks() {
         current.archived = !current.archived;
       }, 'task')) { view.taskEditId = null; refresh(); notify(exercise.archived ? '已恢復' : '已封存'); }
     }));
-    heading.append(links); row.append(heading);
+    const menu = node('details', undefined, 'exercise-actions'); menu.id = `exercise-actions-${exercise.id}`;
+    const summary = node('summary', '⋯'); summary.setAttribute('aria-label', `${exercise.name}的操作`);
+    menu.append(summary, links); heading.append(menu); row.append(heading);
+    menu.open = view.taskEditId === exercise.id;
     if (view.taskEditId === exercise.id && !exercise.archived) {
       const form = node('form', undefined, 'edit-box'); form.noValidate = true;
       const input = node('input'); input.id = 'task-edit-name'; input.value = exercise.name; input.setAttribute('aria-label', '動作名稱');
@@ -187,8 +209,11 @@ function renderTasks() {
         }, 'task')) { view.taskEditId = null; refresh(); notify('已儲存'); }
       }); row.append(form);
     }
-    $(exercise.archived ? 'archived-list' : 'task-list').append(row);
+    return row;
   }
+  const editing = data.exercises.find(e => e.id === view.taskEditId);
+  renderExerciseGroups($('task-list'), data.exercises.filter(e => !e.archived), { prefix: 'task-group', renderRow: taskRow, openCategory: editing?.category });
+  renderExerciseGroups($('archived-list'), data.exercises.filter(e => e.archived), { prefix: 'archive-group', renderRow: taskRow });
   if (!$('task-list').childElementCount) $('task-list').append(node('p', '請新增或恢復動作', 'muted'));
   if (!$('archived-list').childElementCount) $('archived-list').append(node('p', '尚無封存動作', 'muted'));
 }
@@ -227,8 +252,11 @@ $('go-today').onclick = () => selectDate(dateKey());
 for (const [id, offset] of [['calendar-prev', -7], ['calendar-next', 7]]) $(id).onclick = () => {
   const next = parseDate(view.date); next.setDate(next.getDate() + offset); selectDate(dateKey(next) > dateKey() ? dateKey() : dateKey(next));
 };
-$('exercise-select').onchange = (event) => { view.exerciseId = event.target.value; renderComparison(true); };
-$('exercise-search').oninput = () => renderOptions(true); $('exercise-category-filter').onchange = () => renderOptions(true);
+$('exercise-select').onchange = (event) => chooseExercise(event.target.value);
+$('exercise-search').oninput = () => renderPicker();
+$('open-exercise-picker').onclick = () => { $('exercise-search').value = ''; renderPicker(true); $('exercise-picker').showModal(); };
+$('close-exercise-picker').onclick = () => $('exercise-picker').close();
+$('exercise-picker').addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); $('exercise-picker').close(); } });
 $('entry-weight').oninput = () => { view.weightDirty = true; $('entry-error').hidden = true; };
 $('complete-form').onsubmit = (event) => {
   event.preventDefault();
@@ -251,7 +279,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) { re
 
 const feedback = startFeedback();
 training = startTraining({ getData: () => data, getDate: () => view.date, selectDate, transact, refresh,
-  choose: id => { $('exercise-category-filter').value = 'all'; $('exercise-search').value = ''; view.exerciseId = id; renderOptions(true); $('entry-weight').focus(); $('entry-weight').scrollIntoView({ block: 'center' }); } });
+  choose: id => { chooseExercise(id); $('entry-weight').focus(); $('entry-weight').scrollIntoView({ block: 'center' }); } });
 training.render();
 function snapshot() {
   return {
@@ -283,6 +311,7 @@ try {
     for (const id of saved.details || []) if ($(id)) $(id).open = true;
     view.weightDirty = Boolean(saved.weightDirty);
     training.restore(saved.training);
+    if ($('task-input').value.trim()) $('add-exercise-panel').open = true;
     sessionStorage.removeItem(UPDATE_SNAPSHOT_KEY);
   }
 } catch (error) { showError(new Error(`更新畫面無法還原：${error.message}`)); }
@@ -303,5 +332,5 @@ startUpdateManager({
   },
   snapshot,
   canPrepare: () => !training.dirty() && feedback.canPrepare() && !storageFailed && !view.weightDirty && !$('task-input').value.trim() && !view.taskEditId && !view.editId && !store.read().restTimerRunning && !timer.playing(),
-  freeze: (value) => { frozen = value; $('app-root').inert = value; timer.freeze(value); },
+  freeze: (value) => { frozen = value; $('app-root').inert = value; if (value && $('exercise-picker').open) $('exercise-picker').close(); $('exercise-picker').inert = value; timer.freeze(value); },
 });

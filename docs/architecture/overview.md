@@ -1,5 +1,7 @@
 # 系統與資料的白話說明
 
+2026-10-22 分類介面：`exercise-groups.js` 是三處共用的 DOM 分組元件，使用既有 categoryOf/exerciseOrder，不新增資料欄位或服務；原生 details 以穩定 ID、data-category 保存展開狀態。main.js 管理原生 dialog 單選／搜尋，training-ui.js 使用相同元件多選。原隱藏 exercise-select 保留內部目前值及舊更新快照相容，不再是使用者操作入口；搜尋僅影響面板結果，不改 view.exerciseId 或 weightDirty。選取才切換；freeze 更新時關閉並停用 dialog，避免 modal 在 App inert 期間仍可操作。舊版帶新增動作草稿的快照會展開新收納區，避免草稿被隱藏。tools/ui-map.config.json 已改指向新選擇按鈕並開啟新增表單製圖。
+
 ## 組合、待做與到期提示（2026-10-21）
 
 `training.js` 提供明確指定 `zh-Hant-TW-u-co-stroke` 的類內排序、分類前綴、組合與匯入規則；`training-ui.js` 只操作 DOM 並透過原 store 交易，記錄頁仍由 main.js 負責重量。新增可選 `trainingSets`（id/name/exerciseIds）與 `plannedExercises`（dateKey/exerciseId/exerciseName/category），都在原 workoutCalendar.v1 中；是可選加法欄位，schema/dataVersion 仍為 2，已知 v2 修復來源會保留未知欄位。不得回退會丟未知欄位的原始 v1 版。

@@ -10,7 +10,8 @@
       "name": "record", "title": "Record Page Component Map", "activate": "#record-tab", "open": ["#rest-panel"],
       "elements": [
         { "label": "Header Date Picker", "selector": "#schedule-date-input" },
-        { "label": "Exercise Select", "selector": "#exercise-select" },
+        { "label": "Exercise Select", "selector": "#open-exercise-picker" },
+        { "label": "Record > Selected Exercise", "selector": "#selected-exercise" },
         { "label": "Record > Comparison > Previous Weight", "selector": "#last-weight" },
         { "label": "Record > Comparison > Highest Weight", "selector": "#highest-weight" },
         { "label": "Record > Comparison > Current Day Weight", "selector": "#current-weight" },
@@ -33,7 +34,7 @@
       ]
     },
     {
-      "name": "task", "title": "Tasks Page Component Map", "activate": "#tasks-tab", "open": ["#archived-panel"],
+      "name": "task", "title": "Tasks Page Component Map", "activate": "#tasks-tab", "open": ["#add-exercise-panel", "#archived-panel"],
       "elements": [
         { "label": "Task Input", "selector": "#task-input" },
         { "label": "Task Category Select", "selector": "#task-category" },

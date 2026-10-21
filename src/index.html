@@ -27,8 +27,9 @@
             <p class="muted legend"><span>● 已完成（橘）</span><span>▰ 舊紀錄（灰）</span></p>
           </details>
           <section class="section" aria-label="記錄重量">
-            <label for="exercise-select">動作</label><select id="exercise-select"></select>
-            <details id="filter-panel"><summary class="muted">篩選動作</summary><label for="exercise-category-filter">分類</label><select id="exercise-category-filter"></select><label for="exercise-search">搜尋</label><input id="exercise-search" type="search" placeholder="動作名稱"></details>
+            <div class="row exercise-picker-heading"><h2>動作</h2><button id="open-exercise-picker" type="button" aria-haspopup="dialog">選擇動作</button></div>
+            <p id="selected-exercise" class="selected-exercise"></p>
+            <select id="exercise-select" aria-label="目前動作" hidden></select><select id="exercise-category-filter" hidden aria-label="舊版分類狀態"></select>
             <div class="comparison"><div><span class="muted">上次</span><strong id="last-weight">尚無紀錄</strong><span class="muted" id="last-date"></span></div><div><span class="muted">歷史最高</span><strong id="highest-weight">尚無紀錄</strong><span id="current-weight" class="muted">當天最高：—</span></div></div>
             <label for="entry-weight">本次重量</label>
             <form id="complete-form" class="weight-row" novalidate><input id="entry-weight" type="number" min="0" step="any" inputmode="decimal" placeholder="徒手填 0" aria-label="本次實際完成最高重量 kg" required><span>kg</span><button type="submit" class="primary" id="complete-button">完成</button></form>
@@ -46,7 +47,7 @@
         <section id="tasks-page" role="tabpanel" aria-labelledby="tasks-tab" hidden>
           <div class="row management-switch"><button id="manage-exercises" type="button" aria-pressed="true">動作清單</button><button id="manage-sets" type="button" aria-pressed="false">訓練組合</button></div>
           <div id="exercise-management">
-          <h2>我的動作</h2><form id="task-form" novalidate><label for="task-input">新增動作</label><input id="task-input" required autocomplete="off" placeholder="動作名稱"><div class="row actions"><label class="grow" for="task-category">分類<select id="task-category"></select></label><button type="submit" class="primary">新增</button></div></form>
+          <details id="add-exercise-panel"><summary>＋新增動作</summary><form id="task-form" novalidate><label for="task-input">動作名稱</label><input id="task-input" required autocomplete="off" placeholder="動作名稱"><div class="row actions"><label class="grow" for="task-category">分類<select id="task-category"></select></label><button type="submit" class="primary">新增</button></div></form></details>
           <p id="task-error" role="alert" class="error" hidden></p><div id="task-list" class="section"></div>
           <details id="archived-panel"><summary>已封存的動作</summary><div id="archived-list"></div></details>
           </div>
@@ -66,6 +67,11 @@
     </div>
     <footer class="app-update" aria-label="版本與更新"><details id="update-panel"><summary>版本與更新</summary><span id="app-version"></span><button type="button" id="check-update">檢查更新</button><p id="update-status" role="status" aria-live="polite"></p><p id="update-note" hidden>更新會保留輸入與計時。</p><button type="button" id="apply-update" hidden>立即更新</button><button type="button" id="defer-update" hidden>稍後</button></details></footer>
     <div id="completion-toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <dialog id="exercise-picker" aria-labelledby="exercise-picker-title">
+      <div class="row"><h2 id="exercise-picker-title">選擇動作</h2><button id="close-exercise-picker" type="button">關閉</button></div>
+      <label for="exercise-search">搜尋動作</label><input id="exercise-search" type="search" placeholder="輸入名稱搜尋" autocomplete="off">
+      <div id="exercise-picker-results"></div><p id="exercise-picker-empty" class="muted" hidden>沒有符合的動作</p>
+    </dialog>
     <script src="main.js" type="module"></script>
   </body>
 </html>
