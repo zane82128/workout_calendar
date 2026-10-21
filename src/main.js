@@ -81,6 +81,8 @@ function renderComparison(reset = false) {
   $('last-weight').textContent = kg(result.previous?.weight ?? null);
   $('last-date').textContent = result.previous ? shortDate(result.previous.dateKey) : '';
   $('highest-weight').textContent = kg(result.highest);
+  $('last-weight').classList.toggle('empty-value', result.previous === null);
+  $('highest-weight').classList.toggle('empty-value', result.highest === null);
   $('current-weight').textContent = `當天最高：${result.current ? kg(result.current.weight) : '—'}`;
   if (reset) { $('entry-weight').value = result.previous ? result.previous.weight : ''; view.weightDirty = false; }
 }

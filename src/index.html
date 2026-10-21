@@ -10,7 +10,7 @@
   </head>
   <body>
     <div class="app" id="app-root">
-      <header><div class="brand"><span class="pixel-emblem" aria-hidden="true"></span><h1>Workout Calendar</h1><span class="pixel-barbell" aria-hidden="true"></span></div><div class="appearance"><label for="theme-select">外觀</label><select id="theme-select"><option value="system">跟隨系統</option><option value="light">冒險日誌・淺色</option><option value="dark">深色地城・深色</option></select><span id="theme-status" role="status" hidden></span></div></header>
+      <header><div class="brand"><span class="pixel-emblem" aria-hidden="true"></span><h1>Workout Calendar</h1><span class="pixel-barbell" aria-hidden="true"></span></div><div class="appearance"><label for="theme-select">外觀</label><select id="theme-select"><option value="system">跟隨系統</option><option value="light">淺色</option><option value="dark">深色</option></select><span id="theme-status" role="status" hidden></span></div></header>
       <nav role="tablist" aria-label="主要功能">
         <button type="button" id="record-tab" role="tab" data-page="record" aria-selected="true" aria-controls="record-page">紀錄</button>
         <button type="button" id="tasks-tab" role="tab" data-page="tasks" aria-selected="false" aria-controls="tasks-page">動作管理</button>
@@ -29,8 +29,7 @@
           <section class="section" aria-label="記錄重量">
             <label for="exercise-select">動作</label><select id="exercise-select"></select>
             <details id="filter-panel"><summary class="muted">篩選動作</summary><label for="exercise-category-filter">分類</label><select id="exercise-category-filter"></select><label for="exercise-search">搜尋</label><input id="exercise-search" type="search" placeholder="動作名稱"></details>
-            <div class="comparison"><div><span class="muted">上次</span><strong id="last-weight">尚無紀錄</strong><span class="muted" id="last-date"></span></div><div><span class="muted">歷史最高</span><strong id="highest-weight">尚無紀錄</strong></div></div>
-            <p id="current-weight" class="current-weight">當天最高：—</p>
+            <div class="comparison"><div><span class="muted">上次</span><strong id="last-weight">尚無紀錄</strong><span class="muted" id="last-date"></span></div><div><span class="muted">歷史最高</span><strong id="highest-weight">尚無紀錄</strong><span id="current-weight" class="muted">當天最高：—</span></div></div>
             <label for="entry-weight">本次重量</label>
             <form id="complete-form" class="weight-row" novalidate><input id="entry-weight" type="number" min="0" step="any" inputmode="decimal" placeholder="徒手填 0" aria-label="本次實際完成最高重量 kg" required><span>kg</span><button type="submit" class="primary" id="complete-button">完成</button></form>
             <p id="entry-error" role="alert" class="error" hidden></p>

@@ -1,5 +1,7 @@
 # 系統與資料的白話說明
 
+2026-10-21 B 版：只調整 index.html 的當天最高位置與主題選項文案、styles.css 的緊湊排列，以及 main.js 的空成績字級 class。保留所有操作與快照使用的 ID；日曆 summary 在日期列旁定位，展開內容仍在一般文件流，不遮住動作表單。沒有新增儲存欄位、依賴或資料遷移。
+
 發版例外（2026-10-20）：Release PWA 在 main 接受 mobile_verified 或明確的 repair_release。後者只放寬部署前實機門檻，仍依序驗證及部署同份 dist/，不改 `/workout_calendar/src/` 或資料格式。修復模式在工作摘要標記 Android 部署後待驗收、iOS 未驗證。詳細授權與操作見發版 SOP。
 
 更新：2026-10-20，依目前分支實作及本地測試；不是線上環境稽核。產品規則見 `docs/product/spec.md`，選擇原因與狀態見 `docs/decisions/README.md`。

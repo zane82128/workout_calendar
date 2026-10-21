@@ -109,3 +109,57 @@ nav { gap:12px; border-bottom:3px double var(--line); padding-bottom:18px; }
 .pixel-barbell::before { left:0; } .pixel-barbell::after { right:0; }
 @media(max-width:360px) { body { padding:8px 6px 0; } .brand { gap:8px; } h1 { font-size:21px; } .pixel-barbell { display:none; } .comparison { gap:8px; } .comparison>div { padding:10px 7px; } .comparison strong { font-size:26px; } .date-row input { width:170px; } }
 @media(prefers-reduced-motion:reduce) { button:active { translate:none; } }
+
+/* Recording-first layout: compact chrome, generous primary touch targets. */
+:root { font-size:16px; line-height:1.45; }
+body { padding:8px 8px 0; }
+.app,.app-update { border-left-width:4px; border-right-width:4px; }
+.app { border-top-width:4px; }
+header { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:16px 14px 12px; flex-wrap:wrap; }
+.brand { gap:9px; min-width:0; }
+h1 { font-size:18px; overflow-wrap:normal; }
+.pixel-emblem { width:18px; height:22px; border-width:2px; }
+[data-theme='dark'] .pixel-emblem { width:8px; height:16px; margin:4px; }
+[data-theme='dark'] .pixel-emblem::before { width:8px; height:10px; top:-8px; box-shadow:-3px 3px #df6c2d,3px 3px #df6c2d,0 -3px #df6c2d; }
+.pixel-barbell { display:none; }
+.appearance { gap:4px; margin:0; }
+.appearance label { font-size:14px; }
+.appearance select { font-size:14px; min-height:36px; width:96px; padding:4px; }
+#theme-status { font-size:14px; }
+nav { gap:10px; padding:0 14px 12px; }
+button { font-size:16px; padding:7px 10px; }
+button,input,select { min-height:44px; }
+input,select { font-size:16px; padding:7px 9px; }
+main { padding:12px 14px 18px; }
+h2 { font-size:17px; }
+label { margin:8px 0 5px; }
+.muted,.links button,.weekdays,.app-update { font-size:14px; }
+.date-row { padding-right:64px; gap:6px; flex-wrap:nowrap; min-height:44px; }
+.date-row h2 { font-size:16px; flex-shrink:0; }
+.date-row input { width:150px; min-width:0; font-size:16px; }
+#calendar-panel { margin-top:0; position:relative; }
+#calendar-panel>summary { position:absolute; right:0; top:-44px; width:58px; font-size:14px; padding:12px 0 8px; }
+#calendar-panel[open] { padding-top:8px; }
+.section { margin-top:14px; padding-top:12px; }
+section[aria-label='記錄重量'] { position:relative; }
+section[aria-label='記錄重量']>label:first-child { margin-top:0; }
+#filter-panel { margin-top:0; }
+#filter-panel>summary { padding:8px 0 4px; min-height:36px; text-align:right; }
+#filter-panel[open] { padding-bottom:8px; }
+.comparison { gap:0; margin:8px 0 12px; padding:10px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.comparison>div { border:0; box-shadow:none; background:none; padding:0 10px; }
+.comparison>div:first-child { padding-left:0; border-right:1px solid var(--line); }
+.comparison strong { font-size:24px; line-height:1.35; }
+.comparison strong.empty-value { font-size:16px; line-height:2.025; color:var(--muted); }
+#current-weight { margin:0; padding:0; background:none; border:0; font-size:14px; }
+.weight-row { gap:8px; }
+#complete-button { min-width:62px; }
+.record-item,.task-item { padding:8px; margin-top:6px; }
+.links { gap:16px; }
+.links button { padding:7px 0; }
+#rest-panel { padding:0 10px 8px; }
+#rest-panel:not([open]) { padding-bottom:0; }
+#rest-panel summary { padding:10px 0; }
+.timer-settings output { font-size:28px; }
+.app-update { padding-left:14px; padding-right:14px; }
+@media(max-width:360px) { header { padding:14px 12px 10px; } main { padding-left:12px; padding-right:12px; } nav { padding-left:12px; padding-right:12px; } h1 { font-size:16px; } .brand { gap:6px; } .appearance label { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); } .appearance select { width:88px; } .date-row input { width:142px; } .date-row h2 { font-size:14px; } .comparison>div { padding:0 8px; } }
