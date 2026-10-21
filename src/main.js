@@ -4,7 +4,8 @@ import { startFeedback } from './feedback.js';
 import { exerciseOrder, exerciseLabel } from './training.js';
 import { startTraining } from './training-ui.js';
 import { renderExerciseGroups } from './exercise-groups.js';
-import { dateKey, parseDate, requirePastDate, comparison, complete, correct, validName, fourWeeks } from './records.js';
+import { displayWeight, inputNumber, recordedUnit, completeInUnit, correctInUnit } from './weight-units.js';
+import { dateKey, parseDate, requirePastDate, comparison, validName, fourWeeks } from './records.js';
 import { createStore, STORAGE_KEY, StorageFailure } from './storage.js';
 import { createRestTimer, remaining, restConfig, timerLabel } from './rest-timer.js';
 import { startUpdateManager, UPDATE_SNAPSHOT_KEY } from './update-manager.js';
@@ -15,8 +16,9 @@ let data = { exercises: [], entries: [], completedEntries: [] };
 const view = { page: 'record', date: dateKey(), exerciseId: '', weightDirty: false, editId: null, deleteId: null, taskEditId: null };
 let toastId, timer, frozen = false, storageFailed = false;
 let training;
-const kg = (value) => value === null ? '尚無紀錄' : `${value} kg`;
 const shortDate = (key) => key.replaceAll('-', '/');
+let weightPrefill = null;
+const entryUnit = () => $('entry-unit').value === 'lb' ? 'lb' : 'kg';
 
 function node(tag, text, className) {
   const element = document.createElement(tag);
@@ -102,13 +104,17 @@ function renderOptions(reset = false) {
 }
 function renderComparison(reset = false) {
   const result = comparison(data.completedEntries, view.exerciseId, view.date);
-  $('last-weight').textContent = kg(result.previous?.weight ?? null);
+  $('last-weight').textContent = displayWeight(result.previous?.weight ?? null, entryUnit());
   $('last-date').textContent = result.previous ? shortDate(result.previous.dateKey) : '';
-  $('highest-weight').textContent = kg(result.highest);
+  $('highest-weight').textContent = displayWeight(result.highest, entryUnit());
   $('last-weight').classList.toggle('empty-value', result.previous === null);
   $('highest-weight').classList.toggle('empty-value', result.highest === null);
-  $('current-weight').textContent = `當天最高：${result.current ? kg(result.current.weight) : '—'}`;
-  if (reset) { $('entry-weight').value = result.previous ? result.previous.weight : ''; view.weightDirty = false; }
+  $('current-weight').textContent = `當天最高：${result.current ? displayWeight(result.current.weight, entryUnit()) : '—'}`;
+  if (reset) {
+    $('entry-weight').value = result.previous ? inputNumber(result.previous.weight, entryUnit()) : '';
+    weightPrefill = result.previous ? { kg: result.previous.weight, text: $('entry-weight').value, unit: entryUnit() } : null;
+    view.weightDirty = false;
+  }
 }
 function renderCalendar() {
   const today = dateKey();
@@ -140,20 +146,24 @@ function renderRecords() {
   if (!records.length) list.append(node('p', '尚無紀錄', 'muted'));
   for (const r of records) {
     const row = node('article', undefined, 'record-item'); row.dataset.id = r.id;
-    const heading = node('div', undefined, 'row'); heading.append(node('span', r.exerciseName), node('span', kg(r.weight)));
+    const heading = node('div', undefined, 'row'); heading.append(node('span', r.exerciseName), node('span', displayWeight(r.weight, recordedUnit(r))));
     const actions = node('div', undefined, 'links');
     actions.append(button('更正', () => { view.editId = r.id; view.deleteId = null; renderRecords(); }), button('刪除', () => { view.deleteId = r.id; view.editId = null; renderRecords(); }));
     row.append(heading, actions);
     if (view.editId === r.id) {
       const form = node('form', undefined, 'edit-box'); form.noValidate = true;
-      const label = node('label', '更正重量（kg）'); label.htmlFor = 'correct-weight';
-      const input = node('input'); input.id = 'correct-weight'; input.type = 'number'; input.min = '0'; input.step = 'any'; input.inputMode = 'decimal'; input.value = r.weight;
+      const label = node('label', '更正重量'); label.htmlFor = 'correct-weight';
+      const originalUnit = recordedUnit(r), originalText = inputNumber(r.weight, originalUnit);
+      const input = node('input'); input.id = 'correct-weight'; input.type = 'number'; input.min = '0'; input.step = 'any'; input.inputMode = 'decimal'; input.value = originalText;
+      const unit = node('select'); unit.id = 'correct-unit'; unit.setAttribute('aria-label', '更正重量單位');
+      for (const name of ['kg', 'lb']) { const option = node('option', name); option.value = name; unit.append(option); } unit.value = originalUnit;
+      let untouched = true; input.oninput = unit.onchange = () => { untouched = false; };
       const error = node('p', '', 'error'); error.setAttribute('role', 'alert');
       const save = node('button', '儲存'); save.type = 'submit';
-      form.append(label, input, save, button('取消', () => { view.editId = null; renderRecords(); }), error);
+      form.append(label, input, unit, save, button('取消', () => { view.editId = null; renderRecords(); }), error);
       form.addEventListener('submit', (event) => {
         event.preventDefault();
-        if (transact((latest) => correct(latest, r.id, input.value), 'entry')) { view.editId = null; refresh(); notify('已更正'); }
+        if (transact((latest) => correctInUnit(latest, r.id, input.value, unit.value, dateKey(), untouched && input.value === originalText && unit.value === originalUnit ? r.weight : undefined), 'entry')) { view.editId = null; refresh(); notify('已更正'); }
         else error.textContent = $('entry-error').textContent;
       });
       row.append(form);
@@ -257,11 +267,13 @@ $('exercise-search').oninput = () => renderPicker();
 $('open-exercise-picker').onclick = () => { $('exercise-search').value = ''; renderPicker(true); $('exercise-picker').showModal(); };
 $('close-exercise-picker').onclick = () => $('exercise-picker').close();
 $('exercise-picker').addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); $('exercise-picker').close(); } });
-$('entry-weight').oninput = () => { view.weightDirty = true; $('entry-error').hidden = true; };
+$('entry-weight').oninput = () => { weightPrefill = null; view.weightDirty = true; $('entry-error').hidden = true; };
+$('entry-unit').onchange = () => { weightPrefill = null; view.weightDirty = true; renderComparison(); };
 $('complete-form').onsubmit = (event) => {
   event.preventDefault();
   hideToast();
-  if (transact((latest) => complete(latest, view.exerciseId, view.date, $('entry-weight').value), 'entry')) {
+  const exactKg = weightPrefill && weightPrefill.text === $('entry-weight').value && weightPrefill.unit === entryUnit() ? weightPrefill.kg : undefined;
+  if (transact((latest) => completeInUnit(latest, view.exerciseId, view.date, $('entry-weight').value, entryUnit(), dateKey(), exactKg), 'entry')) {
     view.weightDirty = false; refresh(); notify('已完成');
   }
 };
@@ -284,6 +296,7 @@ training.render();
 function snapshot() {
   return {
     page: view.page, selectedDate: view.date, exerciseId: view.exerciseId, weightDirty: view.weightDirty,
+    weightPrefill,
     editId: view.editId, taskEditId: view.taskEditId,
     training: training.snapshot(),
     details: Array.from(document.querySelectorAll('details[id]')).filter((d) => d.open).map((d) => d.id),
@@ -301,7 +314,7 @@ try {
     view.page = saved.page || (saved.activePage === 'tasks' ? 'tasks' : 'record');
     view.exerciseId = saved.exerciseId || fields.get('exercise-select') || '';
     view.editId = saved.editId || null; view.taskEditId = saved.taskEditId || saved.taskDrafts?.[0]?.id || null;
-    for (const id of ['exercise-search', 'exercise-category-filter']) if (fields.has(id)) $(id).value = fields.get(id);
+    for (const id of ['exercise-search', 'exercise-category-filter', 'entry-unit']) if (fields.has(id)) $(id).value = fields.get(id);
     refresh(); setPage(view.page);
     for (const [id, value] of fields) {
       if (['schedule-date-input', 'exercise-select', 'exercise-category-filter', 'exercise-search', 'rest-timer-minutes', 'rest-timer-seconds'].includes(id)) continue;
@@ -310,6 +323,7 @@ try {
     if (saved.taskDrafts?.[0] && $('task-edit-name')) { $('task-edit-name').value = saved.taskDrafts[0].name; $('task-edit-category').value = saved.taskDrafts[0].category; }
     for (const id of saved.details || []) if ($(id)) $(id).open = true;
     view.weightDirty = Boolean(saved.weightDirty);
+    weightPrefill = saved.weightPrefill || null;
     training.restore(saved.training);
     if ($('task-input').value.trim()) $('add-exercise-panel').open = true;
     sessionStorage.removeItem(UPDATE_SNAPSHOT_KEY);

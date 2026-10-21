@@ -1,5 +1,9 @@
 # 系統與資料的白話說明
 
+2026-10-22 kg/lb：weight-units.js 封裝 1 lb = 0.45359237 kg 的換算、格式與輸入單位。completedEntries.weight/unit 保持 canonical kg，避免破壞現有 v2 比較與解碼；新增可選 inputUnit/inputWeight 記錄該最高成績的原輸入單位。未帶新欄位的紀錄視作 kg；已知舊 v2 程式可能更正 canonical weight 而未同步 metadata，因此只有 metadata 與 weight 相符才採用，否則退回 kg，不以 metadata 覆蓋實際重量。這是加法欄位，不改資料版本、不回寫舊紀錄。
+
+main.js 的 weightPrefill 留存預填欄對應的精確 kg；使用者輸入或改單位即清除，避免將保留數字誤當成換算。快照新增 weightPrefill 並於呈現前還原 entry-unit，使比較及草稿單位一致；更正表單同樣在未更動時保留原精度。沒有新增單位偏好雲端或本機永久設定。
+
 2026-10-22 分類介面：`exercise-groups.js` 是三處共用的 DOM 分組元件，使用既有 categoryOf/exerciseOrder，不新增資料欄位或服務；原生 details 以穩定 ID、data-category 保存展開狀態。main.js 管理原生 dialog 單選／搜尋，training-ui.js 使用相同元件多選。原隱藏 exercise-select 保留內部目前值及舊更新快照相容，不再是使用者操作入口；搜尋僅影響面板結果，不改 view.exerciseId 或 weightDirty。選取才切換；freeze 更新時關閉並停用 dialog，避免 modal 在 App inert 期間仍可操作。舊版帶新增動作草稿的快照會展開新收納區，避免草稿被隱藏。tools/ui-map.config.json 已改指向新選擇按鈕並開啟新增表單製圖。
 
 ## 組合、待做與到期提示（2026-10-21）

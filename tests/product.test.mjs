@@ -40,6 +40,32 @@ async function reveal(locator) { await locator.evaluate(e => { for (let p = e.pa
 async function date(page, key) { await page.fill('#schedule-date-input', key); }
 async function finish(page, key, weight) { await date(page, key); await page.fill('#entry-weight', String(weight)); await page.click('#complete-button'); }
 try {
+  await scenario('單筆 kg/lb 輸入、切換不改數字、混合最高與原單位更正', async (page) => {
+    await date(page, '2026-10-18'); await page.fill('#entry-weight', '20'); await page.selectOption('#entry-unit', 'lb');
+    assert.equal(await page.inputValue('#entry-weight'), '20'); await page.click('#complete-button');
+    let saved = (await stored(page)).completedEntries[0];
+    assert.equal(saved.unit, 'kg'); assert.equal(saved.inputUnit, 'lb'); assert(Math.abs(saved.weight - 9.0718474) < 1e-10);
+    assert((await page.locator('#completed-list').textContent()).includes('20 lb'));
+    await page.selectOption('#entry-unit', 'kg'); assert.equal(await page.inputValue('#entry-weight'), '20');
+    assert.equal(await page.locator('#highest-weight').textContent(), '9.07 kg');
+    assert((await page.locator('#completed-list').textContent()).includes('20 lb'));
+    await finish(page, '2026-10-19', 10); assert.equal(await page.locator('#highest-weight').textContent(), '10 kg');
+    await page.selectOption('#entry-unit', 'lb'); assert.equal(await page.inputValue('#entry-weight'), '10');
+    assert.equal(await page.locator('#highest-weight').textContent(), '22.05 lb');
+    await date(page, '2026-10-18'); await page.locator('#completed-list button:text-is("更正")').click();
+    assert.equal(await page.inputValue('#correct-unit'), 'lb'); assert.equal(await page.inputValue('#correct-weight'), '20');
+    await page.fill('#correct-weight', '30'); await page.locator('#completed-list button:text-is("儲存")').click();
+    assert.equal(await page.locator('#highest-weight').textContent(), '30 lb');
+    await page.reload(); assert((await page.locator('#entry-unit').inputValue()) === 'kg');
+    await date(page, '2026-10-18'); assert((await page.locator('#completed-list').textContent()).includes('30 lb'));
+    await date(page, '2026-10-20');
+    // Prefill shows rounded kg but completing it unchanged retains the source precision.
+    await page.selectOption('#entry-unit', 'lb'); await date(page, '2026-10-19');
+    assert.equal(await page.inputValue('#entry-weight'), '30');
+    await page.click('#complete-button');
+    saved = (await stored(page)).completedEntries.find(r => r.dateKey === '2026-10-19');
+    assert(Math.abs(saved.weight - 13.6077711) < 1e-10);
+  });
   await scenario('三處分類收合、搜尋取消不改重量、組合跨分類勾選保留', async (page) => {
     await page.fill('#entry-weight', '37.5');
     await page.click('#open-exercise-picker');

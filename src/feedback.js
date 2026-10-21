@@ -9,7 +9,6 @@ export function startFeedback() {
   const status = document.getElementById('feedback-status');
   const submit = document.getElementById('feedback-send');
   let pending = null, busy = false, saved = true;
-  document.getElementById('feedback-version').textContent = VERSION;
   try {
     const draft = JSON.parse(sessionStorage.getItem(KEY) || 'null');
     if (draft) {

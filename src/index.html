@@ -32,7 +32,7 @@
             <select id="exercise-select" aria-label="目前動作" hidden></select><select id="exercise-category-filter" hidden aria-label="舊版分類狀態"></select>
             <div class="comparison"><div><span class="muted">上次</span><strong id="last-weight">尚無紀錄</strong><span class="muted" id="last-date"></span></div><div><span class="muted">歷史最高</span><strong id="highest-weight">尚無紀錄</strong><span id="current-weight" class="muted">當天最高：—</span></div></div>
             <label for="entry-weight">本次重量</label>
-            <form id="complete-form" class="weight-row" novalidate><input id="entry-weight" type="number" min="0" step="any" inputmode="decimal" placeholder="徒手填 0" aria-label="本次實際完成最高重量 kg" required><span>kg</span><button type="submit" class="primary" id="complete-button">完成</button></form>
+            <form id="complete-form" class="weight-row" novalidate><input id="entry-weight" type="number" min="0" step="any" inputmode="decimal" placeholder="徒手填 0" aria-label="本次實際完成最高重量" required><select id="entry-unit" aria-label="本次重量單位"><option value="kg">kg</option><option value="lb">lb</option></select><button type="submit" class="primary" id="complete-button">完成</button></form>
             <p id="entry-error" role="alert" class="error" hidden></p>
           </section>
           <details class="section" id="daily-set-panel"><summary>加入訓練組合</summary><p id="daily-set-hint" class="muted">先到動作管理 → 訓練組合建立組合。</p><form id="daily-set-form" class="row"><select id="daily-set-select" class="grow" aria-label="訓練組合"></select><button id="daily-set-add" type="submit">加入今天</button></form><p class="muted">只加入待做清單，逐項完成才算紀錄。</p><p id="daily-set-status" role="status"></p></details>
@@ -58,7 +58,6 @@
           <form id="feedback-form" novalidate>
             <label for="feedback-title">主旨</label><input id="feedback-title" maxlength="80" required autocomplete="off" placeholder="最多 80 字">
             <label for="feedback-body">內容</label><textarea id="feedback-body" maxlength="2000" rows="5" required placeholder="請描述遇到的問題（最多 2000 字）"></textarea>
-            <p class="muted">版本：<span id="feedback-version"></span>。草稿暫存於本分頁，重整保留；關閉分頁可能遺失。</p>
             <button class="primary" id="feedback-send" type="submit">送出回報</button>
             <p id="feedback-status" role="status" aria-live="polite"></p>
           </form>

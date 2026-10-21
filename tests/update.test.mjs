@@ -77,6 +77,7 @@ try {
     await page.fill('#entry-weight', '42.5');
     await page.click('#complete-button');
     await page.fill('#entry-weight', '77.5');
+    await page.selectOption('#entry-unit', 'lb');
     await page.locator('#feedback-panel').evaluate((e) => e.open = true);
     await page.fill('#feedback-title', '尚未送出的問題');
     await page.fill('#feedback-body', '更新後應保留這段回報草稿');
@@ -103,6 +104,7 @@ try {
     await version(page, candidate.releaseId);
     assert.equal(await page.inputValue('#schedule-date-input'), '2026-10-01');
     assert.equal(await page.inputValue('#entry-weight'), '77.5');
+    assert.equal(await page.inputValue('#entry-unit'), 'lb');
     assert.equal(await page.inputValue('#feedback-title'), '尚未送出的問題');
     assert.equal(await page.inputValue('#feedback-body'), '更新後應保留這段回報草稿');
     const after = await page.evaluate(() => JSON.parse(localStorage.getItem('workoutCalendar.v1')));
