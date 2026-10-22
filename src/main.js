@@ -6,6 +6,7 @@ import { exerciseOrder, exerciseLabel } from './training.js';
 import { startTraining } from './training-ui.js';
 import { renderExerciseGroups } from './exercise-groups.js';
 import { displayWeight, inputNumber, recordedUnit, completeInUnit, correctInUnit } from './weight-units.js';
+import { isCardio, cardioUnits, unitLabel, allRecords, cardioText, cardioComparison, completeCardio, correctCardio } from './cardio.js';
 import { dateKey, parseDate, requirePastDate, comparison, validName, fourWeeks } from './records.js';
 import { createStore, STORAGE_KEY, StorageFailure } from './storage.js';
 import { createRestTimer, remaining, restConfig, timerLabel } from './rest-timer.js';
@@ -21,7 +22,23 @@ let toastId, timer, frozen = false, storageFailed = false;
 let training;
 const shortDate = (key) => key.replaceAll('-', '/');
 let weightPrefill = null;
-const entryUnit = () => $('entry-unit').value === 'lb' ? 'lb' : 'kg';
+const entryUnit = () => $('entry-unit').value;
+const currentCardio = () => isCardio(data.exercises.find(e => e.id === view.exerciseId));
+function renderEntryUnits() {
+  const cardio = currentCardio(), units = cardio ? cardioUnits : ['kg', 'lb'], previous = entryUnit();
+  if ([...$('entry-unit').options].map(o => o.value).join() !== units.join()) {
+    $('entry-unit').replaceChildren(...units.map(value => { const option = node('option', cardio ? unitLabel(value) : value); option.value = value; return option; }));
+    if (units.includes(previous)) $('entry-unit').value = previous;
+  }
+  const label = cardio ? (entryUnit() === 'minutes' ? '本次時間' : '本次次數') : '本次重量';
+  document.querySelector('label[for="entry-weight"]').textContent = label;
+  $('entry-weight').placeholder = cardio ? '請輸入' : '徒手填 0';
+  $('entry-weight').setAttribute('aria-label', cardio ? label : '本次實際完成最高重量');
+  $('entry-unit').setAttribute('aria-label', cardio ? '本次有氧單位' : '本次重量單位');
+  $('entry-weight').step = entryUnit() === 'reps' ? '1' : 'any';
+  $('entry-weight').inputMode = entryUnit() === 'reps' ? 'numeric' : 'decimal';
+  $('highest-label').textContent = cardio ? (entryUnit() === 'minutes' ? '歷史最長' : '歷史最多') : '歷史最高';
+}
 
 function node(tag, text, className) {
   const element = document.createElement(tag);
@@ -106,16 +123,20 @@ function renderOptions(reset = false) {
   renderComparison(reset);
 }
 function renderComparison(reset = false) {
-  const result = comparison(data.completedEntries, view.exerciseId, view.date);
-  $('last-weight').textContent = displayWeight(result.previous?.weight ?? null, entryUnit());
+  renderEntryUnits();
+  const cardio = currentCardio();
+  const result = cardio ? cardioComparison(data, view.exerciseId, view.date, entryUnit()) : comparison(data.completedEntries, view.exerciseId, view.date);
+  const display = value => cardio ? (value === null ? '尚無紀錄' : `${value} ${unitLabel(entryUnit())}`) : displayWeight(value, entryUnit());
+  const valueOf = record => record ? (cardio ? record.value : record.weight) : null;
+  $('last-weight').textContent = display(valueOf(result.previous));
   $('last-date').textContent = result.previous ? shortDate(result.previous.dateKey) : '';
-  $('highest-weight').textContent = displayWeight(result.highest, entryUnit());
+  $('highest-weight').textContent = display(result.highest);
   $('last-weight').classList.toggle('empty-value', result.previous === null);
   $('highest-weight').classList.toggle('empty-value', result.highest === null);
-  $('current-weight').textContent = `當天最高：${result.current ? displayWeight(result.current.weight, entryUnit()) : '—'}`;
+  $('current-weight').textContent = `當天${cardio ? (entryUnit() === 'minutes' ? '最長' : '最多') : '最高'}：${result.current ? display(valueOf(result.current)) : '—'}`;
   if (reset) {
-    $('entry-weight').value = result.previous ? inputNumber(result.previous.weight, entryUnit()) : '';
-    weightPrefill = result.previous ? { kg: result.previous.weight, text: $('entry-weight').value, unit: entryUnit() } : null;
+    $('entry-weight').value = result.previous ? (cardio ? String(result.previous.value) : inputNumber(result.previous.weight, entryUnit())) : '';
+    weightPrefill = result.previous && !cardio ? { kg: result.previous.weight, text: $('entry-weight').value, unit: entryUnit() } : null;
     view.weightDirty = false;
   }
 }
@@ -125,7 +146,7 @@ function renderCalendar() {
   $('date-title').textContent = view.date === today ? '今天' : shortDate(view.date);
   $('calendar-month').textContent = view.date.slice(0, 7).replace('-', ' / ');
   $('calendar-days').replaceChildren();
-  const completed = new Set(data.completedEntries.map((r) => r.dateKey)), legacy = new Set(data.entries.map((r) => r?.dateKey));
+  const completed = new Set(allRecords(data).map((r) => r.dateKey)), legacy = new Set(data.entries.map((r) => r?.dateKey));
   for (const key of fourWeeks(view.date)) {
     const hasNew = completed.has(key), hasOld = legacy.has(key);
     const cell = button(String(Number(key.slice(-2))), () => selectDate(key));
@@ -145,28 +166,30 @@ function selectDate(key) {
 }
 function renderRecords() {
   const list = $('completed-list'); list.replaceChildren();
-  const records = data.completedEntries.filter((r) => r.dateKey === view.date);
+  const records = allRecords(data).filter((r) => r.dateKey === view.date);
   if (!records.length) list.append(node('p', '尚無紀錄', 'muted'));
   for (const r of records) {
     const row = node('article', undefined, 'record-item'); row.dataset.id = r.id;
-    const heading = node('div', undefined, 'row'); heading.append(node('span', r.exerciseName), node('span', displayWeight(r.weight, recordedUnit(r))));
+    const cardio = cardioUnits.includes(r.unit);
+    const heading = node('div', undefined, 'row'); heading.append(node('span', r.exerciseName + (!cardio && r.exerciseCategory === '有氧' ? ' · 舊重量紀錄' : '')), node('span', cardio ? cardioText(r) : displayWeight(r.weight, recordedUnit(r))));
     const actions = node('div', undefined, 'links');
     actions.append(button('更正', () => { view.editId = r.id; view.deleteId = null; renderRecords(); }), button('刪除', () => { view.deleteId = r.id; view.editId = null; renderRecords(); }));
     row.append(heading, actions);
     if (view.editId === r.id) {
       const form = node('form', undefined, 'edit-box'); form.noValidate = true;
-      const label = node('label', '更正重量'); label.htmlFor = 'correct-weight';
-      const originalUnit = recordedUnit(r), originalText = inputNumber(r.weight, originalUnit);
+      const label = node('label', cardio ? '更正紀錄' : '更正重量'); label.htmlFor = 'correct-weight';
+      const originalUnit = cardio ? r.unit : recordedUnit(r), originalText = cardio ? String(r.value) : inputNumber(r.weight, originalUnit);
       const input = node('input'); input.id = 'correct-weight'; input.type = 'number'; input.min = '0'; input.step = 'any'; input.inputMode = 'decimal'; input.value = originalText;
       const unit = node('select'); unit.id = 'correct-unit'; unit.setAttribute('aria-label', '更正重量單位');
-      for (const name of ['kg', 'lb']) { const option = node('option', name); option.value = name; unit.append(option); } unit.value = originalUnit;
+      for (const name of cardio ? [r.unit] : ['kg', 'lb']) { const option = node('option', cardio ? unitLabel(name) : name); option.value = name; unit.append(option); } unit.value = originalUnit;
+      if (cardio) { unit.disabled = true; unit.setAttribute('aria-label', '此筆有氧單位'); input.step = r.unit === 'reps' ? '1' : 'any'; }
       let untouched = true; input.oninput = unit.onchange = () => { untouched = false; };
       const error = node('p', '', 'error'); error.setAttribute('role', 'alert');
       const save = node('button', '儲存'); save.type = 'submit';
       form.append(label, input, unit, save, button('取消', () => { view.editId = null; renderRecords(); }), error);
       form.addEventListener('submit', (event) => {
         event.preventDefault();
-        if (transact((latest) => correctInUnit(latest, r.id, input.value, unit.value, dateKey(), untouched && input.value === originalText && unit.value === originalUnit ? r.weight : undefined), 'entry')) { view.editId = null; refresh(); notify('已更正'); }
+        if (transact((latest) => cardio ? correctCardio(latest, r.id, input.value) : correctInUnit(latest, r.id, input.value, unit.value, dateKey(), untouched && input.value === originalText && unit.value === originalUnit ? r.weight : undefined), 'entry')) { view.editId = null; refresh(); notify('已更正'); }
         else error.textContent = $('entry-error').textContent;
       });
       row.append(form);
@@ -174,7 +197,7 @@ function renderRecords() {
     if (view.deleteId === r.id) {
       const confirmation = node('div', undefined, 'confirm-box'); confirmation.setAttribute('role', 'alert');
       confirmation.append(node('p', '刪除這筆紀錄？'), node('p', '重量對照將重新計算。', 'muted'), button('取消', () => { view.deleteId = null; renderRecords(); }), button('確認刪除', () => {
-        if (transact((latest) => { latest.completedEntries = latest.completedEntries.filter((entry) => entry.id !== r.id); })) {
+        if (transact((latest) => { latest.completedEntries = latest.completedEntries.filter((entry) => entry.id !== r.id); if (latest.cardioEntries) latest.cardioEntries = latest.cardioEntries.filter(entry => entry.id !== r.id); })) {
           view.deleteId = null; refresh(); notify('已刪除');
         }
       })); row.append(confirmation);
@@ -280,7 +303,7 @@ $('complete-form').onsubmit = (event) => {
   event.preventDefault();
   hideToast();
   const exactKg = weightPrefill && weightPrefill.text === $('entry-weight').value && weightPrefill.unit === entryUnit() ? weightPrefill.kg : undefined;
-  if (transact((latest) => completeInUnit(latest, view.exerciseId, view.date, $('entry-weight').value, entryUnit(), dateKey(), exactKg), 'entry')) {
+  if (transact((latest) => currentCardio() ? completeCardio(latest, view.exerciseId, view.date, $('entry-weight').value, entryUnit()) : completeInUnit(latest, view.exerciseId, view.date, $('entry-weight').value, entryUnit(), dateKey(), exactKg), 'entry')) {
     view.weightDirty = false; refresh(); notify('已完成');
   }
 };
@@ -329,6 +352,7 @@ try {
       if (['schedule-date-input', 'exercise-select', 'exercise-category-filter', 'exercise-search', 'rest-timer-minutes', 'rest-timer-seconds'].includes(id)) continue;
       if ($(id)) $(id).value = value;
     }
+    renderComparison();
     if (saved.taskDrafts?.[0] && $('task-edit-name')) { $('task-edit-name').value = saved.taskDrafts[0].name; $('task-edit-category').value = saved.taskDrafts[0].category; }
     for (const id of saved.details || []) if ($(id)) $(id).open = true;
     view.weightDirty = Boolean(saved.weightDirty);

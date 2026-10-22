@@ -1,0 +1,41 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { completeCardio, correctCardio, cardioComparison, cardioValue } from '../src/cardio.js';
+import { createStore, STORAGE_KEY, CARDIO_BACKUP_KEY, decode } from '../src/storage.js';
+const date = '2026-10-22';
+const seed = () => ({ schemaVersion: 2, exercises: [{ id: 'run', name: '跑步', category: '有氧' }], entries: [], completedEntries: [{ id: 'old', exerciseId: 'run', exerciseName: '跑步', exerciseCategory: '有氧', dateKey: date, weight: 99, unit: 'kg' }] });
+test('有氧分鐘與次數同日分開最高、上次排除當天、不取舊重量', () => {
+  const d = seed();
+  completeCardio(d,'run',date,10.5,'minutes',date);
+  completeCardio(d,'run',date,500,'reps',date);
+  completeCardio(d,'run',date,5,'minutes',date);
+  completeCardio(d,'run','2026-10-20',20,'minutes',date);
+  assert.equal(d.cardioEntries.length,3);
+  assert.equal(cardioComparison(d,'run',date,'minutes').previous.value,20);
+  assert.equal(cardioComparison(d,'run',date,'minutes').current.value,10.5);
+  assert.equal(cardioComparison(d,'run',date,'reps').previous,null);
+  assert.equal(cardioComparison(d,'run',date,'reps').highest,500);
+  assert.equal(d.completedEntries[0].weight,99);
+  correctCardio(d,d.cardioEntries[2].id,2,date);
+  assert.equal(cardioComparison(d,'run',date,'minutes').highest,10.5);
+  d.cardioEntries = d.cardioEntries.filter(r => r.unit !== 'reps');
+  assert.equal(cardioComparison(d,'run',date,'reps').highest,null);
+});
+test('有氧拒絕空白、零、負值、非有限值、小數次數、未來及封存', () => {
+  for (const unit of ['minutes','reps']) for (const value of ['',0,-1,NaN,Infinity,null]) assert.throws(() => cardioValue(value,unit));
+  assert.throws(() => cardioValue(2.5,'reps'));
+  assert.throws(() => cardioValue(2,'kg'));
+  assert.equal(cardioValue('.5','minutes'),.5);
+  const d = seed(); assert.throws(() => completeCardio(d,'run','2026-10-23',1,'minutes',date));
+  d.exercises[0].archived = true; assert.throws(() => completeCardio(d,'run',date,1,'minutes',date));
+});
+test('新增有氧前備份、舊資料保留、備份失敗不寫入、重複資料拒絕', () => {
+  const raw=JSON.stringify(seed()), map = new Map([[STORAGE_KEY,raw]]);
+  const store=createStore({getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v)});
+  store.transaction(d=>completeCardio(d,'run',date,1,'minutes',date));
+  assert.equal(map.get(CARDIO_BACKUP_KEY),raw);
+  assert.deepEqual(store.read().completedEntries,seed().completedEntries);
+  const d=store.read();d.cardioEntries.push({...d.cardioEntries[0],id:'duplicate'});assert.throws(()=>decode(JSON.stringify(d)));
+  const blocked=createStore({getItem:k=>k===STORAGE_KEY?raw:null,setItem:()=>{throw Error('full');}});
+  assert.throws(()=>blocked.transaction(d=>completeCardio(d,'run',date,1,'minutes',date)));
+});

@@ -1,5 +1,6 @@
 import { EXERCISE_CATEGORIES, DEFAULT_EXERCISE_CATEGORY } from './preset-exercises.js';
 import { requirePastDate } from './records.js';
+import { allRecords } from './cardio.js';
 
 const stroke = new Intl.Collator('zh-Hant-TW-u-co-stroke', { numeric: true, sensitivity: 'variant' });
 export const categoryOf = e => e.category || DEFAULT_EXERCISE_CATEGORY;
@@ -29,7 +30,7 @@ export function importSet(data, id, date, today) {
   for (const exerciseId of set.exerciseIds) {
     const exercise = data.exercises.find(e => e.id === exerciseId && !e.archived);
     if (!exercise) { skipped++; continue; }
-    if (data.plannedExercises.some(p => p.dateKey === date && p.exerciseId === exerciseId) || data.completedEntries.some(r => r.dateKey === date && r.exerciseId === exerciseId)) continue;
+    if (data.plannedExercises.some(p => p.dateKey === date && p.exerciseId === exerciseId) || allRecords(data).some(r => r.dateKey === date && r.exerciseId === exerciseId)) continue;
     data.plannedExercises.push({ dateKey: date, exerciseId, exerciseName: exercise.name, category: categoryOf(exercise) }); added++;
   }
   return { added, skipped };

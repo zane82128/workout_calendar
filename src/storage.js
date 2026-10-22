@@ -1,10 +1,12 @@
 import { PRESET_EXERCISES, PRESET_VERSION } from './preset-exercises.js';
 import { parseDate, weightValue } from './records.js';
 import { validateTraining } from './training.js';
+import { validateCardio } from './cardio.js';
 
 export const STORAGE_KEY = 'workoutCalendar.v1';
 export const BACKUP_KEY = 'workoutCalendar.backup.beforeWeightV2';
 export const TRAINING_BACKUP_KEY = 'workoutCalendar.backup.beforeTrainingSets';
+export const CARDIO_BACKUP_KEY = 'workoutCalendar.backup.beforeCardio';
 export const DATA_VERSION = 2;
 export class StorageFailure extends Error {}
 
@@ -30,6 +32,7 @@ export function decode(raw) {
     days.add(key); ids.add(r.id);
   }
   validateTraining(result);
+  validateCardio(result);
   return result;
 }
 
@@ -48,6 +51,7 @@ export function createStore(storage) {
     data.schemaVersion = DATA_VERSION;
     const serialized = JSON.stringify(data);
     access(() => decode(serialized));
+    if (raw !== null && JSON.parse(raw).cardioEntries === undefined && data.cardioEntries !== undefined && access(() => storage.getItem(CARDIO_BACKUP_KEY)) === null) access(() => storage.setItem(CARDIO_BACKUP_KEY, raw));
     if (raw !== null) {
       const previous = JSON.parse(raw);
       const addsTraining = ['trainingSets', 'plannedExercises'].some(key => previous[key] === undefined && data[key] !== undefined);

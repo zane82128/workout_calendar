@@ -1,5 +1,6 @@
 import { exerciseOrder, exerciseLabel, saveSet, importSet } from './training.js';
 import { dateKey } from './records.js';
+import { allRecords } from './cardio.js';
 import { renderExerciseGroups } from './exercise-groups.js';
 
 export function startTraining({ getData, getDate, selectDate, transact, refresh, choose }) {
@@ -59,7 +60,7 @@ export function startTraining({ getData, getDate, selectDate, transact, refresh,
   }
   function renderPending() {
     const data = getData(), date = getDate();
-    const items = (data.plannedExercises || []).filter(p => p.dateKey === date && !data.completedEntries.some(r => r.dateKey === date && r.exerciseId === p.exerciseId));
+    const items = (data.plannedExercises || []).filter(p => p.dateKey === date && !allRecords(data).some(r => r.dateKey === date && r.exerciseId === p.exerciseId));
     $('pending-list').replaceChildren(); $('pending-section').hidden = !items.length;
     for (const p of items) {
       const e = data.exercises.find(e => e.id === p.exerciseId);

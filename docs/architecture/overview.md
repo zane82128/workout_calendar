@@ -1,8 +1,14 @@
 # 系統與資料的白話說明
 
-## ?????2026-10-22?
+## 有氧資料（2026-10-22）
 
-`designs/app-icon/shield-master.png` ???????`tools/export-icons.ps1` ?? `src/icons/shield-v1-{32,180,192,512}.png`?index ????? Apple ???manifest ?? 192?512?512 ?? any ? maskable????? icons ??????????? manifest PNG ??????????? SVG ???????????????????? start_url?
+`cardio.js` 管理分鐘／次數的驗證、完成與比較。原儲存物件新增可選 `cardioEntries`（id、exerciseId、名稱／分類快照、dateKey、value、unit、時間戳）；unit 為 minutes 或 reps。以動作、日期、單位去重，與 completedEntries 的 kg 分開，避免舊 App 將時間誤當重量。schema/dataVersion 仍為 2，已知舊 v2 會保留未知欄位但不呈現有氧；回退舊版會暫時看不到新有氧紀錄。
+
+第一次加入 cardioEntries 前先備份原字串至 `workoutCalendar.backup.beforeCardio`，失敗則不寫入。decode 驗證數值、日期、唯一鍵與跨重量／有氧 ID；main.js 合併顯示日曆與完成清單，training 共用合併查詢判斷待做。更新快照沿用原輸入欄位，還原後依動作建立可用單位再還原選擇。所有資料仍在本機，無新增外部服務。
+
+## 圖示資源（2026-10-22）
+
+`designs/app-icon/shield-master.png` 保存原稿，`tools/export-icons.ps1` 輸出 32、180、192、512 PNG。index 引用分頁及 Apple 圖示，manifest 引用 192／512，512 為 any maskable。建置複製與預快取圖示，檢查資源及 PNG 尺寸；保留舊 SVG，不修改 start_url 或訓練資料。
 
 
 2026-10-22 App shell：`app-shell.js` 管理設定 dialog、關閉／Escape、更新快捷入口，以及用 ResizeObserver 提供實際導航高度。CSS 的 #app-navigation 使用 sticky 與 safe-area 偏移，與一般頁首分開；主內容控制項有 scroll-margin，避免原生聚焦捲動時被導航遮住。theme.js、feedback.js 與 update-manager.js 仍綁同一組元素 ID，只搬動 DOM 到設定面板，沒有重建／複製表單。
