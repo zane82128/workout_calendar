@@ -38,6 +38,14 @@ export async function checkRelease(output = path.join(root, 'dist')) {
   assert(resources.includes('manifest.json') && resources.includes('icons/calendar-icon.svg'));
   const webManifest = JSON.parse(await readFile(path.join(appDir, 'manifest.json'), 'utf8'));
   assert.equal(webManifest.start_url, '.');
+  for (const size of [192, 512]) {
+    const icon = webManifest.icons.find(icon => icon.sizes === `${size}x${size}` && icon.type === 'image/png');
+    assert(icon && resources.includes(icon.src), `缺少 ${size}px 安裝圖示`);
+    const png = await readFile(path.join(appDir, icon.src));
+    assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+    assert.equal(png.readUInt32BE(16), size); assert.equal(png.readUInt32BE(20), size);
+  }
+  assert(webManifest.icons.some(icon => (icon.purpose || '').split(' ').includes('maskable')), '缺少可裁切圖示');
   if (process.env.FORMAL_RELEASE === '1') {
     assert(!manifest.sourceDirty && !git('status', '--porcelain'), '正式發版要求乾淨的工作目錄');
     const remoteTags = git('ls-remote', '--tags', 'origin', `refs/tags/pwa-${manifest.releaseId}`);

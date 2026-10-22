@@ -1,5 +1,7 @@
 # Local screenshots/assets not for repo
 *.png
+!src/icons/shield-v1-*.png
+!designs/app-icon/shield-master.png
 
 # OS
 .DS_Store

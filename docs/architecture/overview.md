@@ -1,5 +1,10 @@
 # 系統與資料的白話說明
 
+## ?????2026-10-22?
+
+`designs/app-icon/shield-master.png` ???????`tools/export-icons.ps1` ?? `src/icons/shield-v1-{32,180,192,512}.png`?index ????? Apple ???manifest ?? 192?512?512 ?? any ? maskable????? icons ??????????? manifest PNG ??????????? SVG ???????????????????? start_url?
+
+
 2026-10-22 App shell：`app-shell.js` 管理設定 dialog、關閉／Escape、更新快捷入口，以及用 ResizeObserver 提供實際導航高度。CSS 的 #app-navigation 使用 sticky 與 safe-area 偏移，與一般頁首分開；主內容控制項有 scroll-margin，避免原生聚焦捲動時被導航遮住。theme.js、feedback.js 與 update-manager.js 仍綁同一組元素 ID，只搬動 DOM 到設定面板，沒有重建／複製表單。
 
 main.js 的 pageScroll 保存 record/tasks 各自 window.scrollY，切頁時同步還原，snapshot 包含 pageScroll、settingsOpen；初始化快照後用 requestAnimationFrame 在內容還原完才捲動。設定位於 app-root 外，freeze 也會將設定設 inert；選動作面板另行關閉及停用。更新 ready 不自動開設定，而顯示 #update-shortcut；原 app-update 浮層樣式在設定內覆寫為一般區塊。沒有新增永久 localStorage 欄位或服務；位置記憶是畫面與更新快照，不是雲端同步。
