@@ -65,6 +65,22 @@ textarea:focus-visible { outline:2px solid var(--orange); outline-offset:3px; }
 #feedback-send { display:block; margin-top:14px; }
 #entry-unit { width:70px; padding:7px 5px; }
 #correct-unit { width:80px; margin:8px 8px 8px 0; }
+#app-navigation { position:sticky; top:env(safe-area-inset-top,0px); z-index:10; background:var(--surface); box-shadow:inset 3px 0 var(--gold),inset -3px 0 var(--gold),0 3px 0 var(--edge); }
+#app-navigation::before,#app-navigation::after { content:''; position:absolute; top:0; bottom:-3px; width:3px; background:var(--gold); z-index:1; pointer-events:none; }
+#app-navigation::before { left:0; }
+#app-navigation::after { right:0; }
+#app-navigation nav { padding-top:8px; }
+#update-shortcut { display:block; width:calc(100% - 28px); margin:0 14px 10px; background:var(--soft); color:var(--orange); font-size:14px; }
+body:has(dialog[open]) { overflow:hidden; }
+dialog { overscroll-behavior:contain; }
+#settings-panel { color:var(--text); background:var(--surface); border:3px solid var(--gold); width:calc(100% - 24px); max-width:500px; max-height:calc(100dvh - 32px); padding:16px; overflow:auto; }
+#settings-panel::backdrop { background:#0009; }
+.settings-heading { border-bottom:1px solid var(--line); padding-bottom:10px; }
+.settings-appearance { padding:10px 0; }
+#settings-panel .app-update,#settings-panel .app-update--ready { position:static; width:100%; max-width:none; border:0; border-top:1px solid var(--line); box-shadow:none; padding:0; margin-top:12px; background:var(--surface); color:var(--text); font-size:14px; text-align:left; border-radius:0; }
+#settings-panel .app-update summary { padding:12px 0; }
+#settings-panel .app-update--ready summary { color:var(--orange); }
+main :is(button,input,textarea,select,summary) { scroll-margin-top:calc(var(--navigation-height,70px) + env(safe-area-inset-top,0px) + 12px); }
 .exercise-group { margin-top:8px; border:1px solid var(--line); background:var(--surface); }
 .exercise-group>summary { padding:10px; min-height:44px; }
 .group-count { float:right; margin-left:12px; }

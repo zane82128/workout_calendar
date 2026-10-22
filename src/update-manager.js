@@ -33,6 +33,7 @@ export function startUpdateManager({ save, snapshot, canPrepare, freeze }) {
     laterButton.hidden = deferredWorker === registration.waiting;
     note.hidden = deferredWorker === registration.waiting;
     document.getElementById('update-panel').open = true;
+    document.getElementById('update-shortcut').hidden = false;
     document.querySelector('.app-update').classList.toggle('app-update--ready', deferredWorker !== registration.waiting);
     return true;
   }

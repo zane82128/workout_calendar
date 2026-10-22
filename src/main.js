@@ -1,6 +1,7 @@
 import { EXERCISE_CATEGORIES, DEFAULT_EXERCISE_CATEGORY } from './preset-exercises.js';
 import './theme.js';
 import { startFeedback } from './feedback.js';
+import { startAppShell } from './app-shell.js';
 import { exerciseOrder, exerciseLabel } from './training.js';
 import { startTraining } from './training-ui.js';
 import { renderExerciseGroups } from './exercise-groups.js';
@@ -11,6 +12,8 @@ import { createRestTimer, remaining, restConfig, timerLabel } from './rest-timer
 import { startUpdateManager, UPDATE_SNAPSHOT_KEY } from './update-manager.js';
 
 const $ = (id) => document.getElementById(id);
+const shell = startAppShell();
+const pageScroll = { record: 0, tasks: 0 };
 const store = createStore({ getItem: (key) => window.localStorage.getItem(key), setItem: (key, value) => window.localStorage.setItem(key, value) });
 let data = { exercises: [], entries: [], completedEntries: [] };
 const view = { page: 'record', date: dateKey(), exerciseId: '', weightDirty: false, editId: null, deleteId: null, taskEditId: null };
@@ -228,8 +231,12 @@ function renderTasks() {
   if (!$('archived-list').childElementCount) $('archived-list').append(node('p', '尚無封存動作', 'muted'));
 }
 function setPage(page) {
-  view.page = page === 'tasks' ? 'tasks' : 'record';
+  const next = page === 'tasks' ? 'tasks' : 'record';
+  const changed = next !== view.page;
+  if (changed) pageScroll[view.page] = window.scrollY;
+  view.page = next;
   for (const name of ['record', 'tasks']) { $(`${name}-page`).hidden = view.page !== name; $(`${name}-tab`).setAttribute('aria-selected', String(view.page === name)); }
+  if (changed) window.scrollTo({ top: pageScroll[next], behavior: 'instant' });
 }
 function refresh() { renderCalendar(); renderOptions(); renderRecords(); renderTasks(); training?.render(); }
 function renderTimer(latest, alarmPlaying, highlighted) {
@@ -294,9 +301,11 @@ training = startTraining({ getData: () => data, getDate: () => view.date, select
   choose: id => { chooseExercise(id); $('entry-weight').focus(); $('entry-weight').scrollIntoView({ block: 'center' }); } });
 training.render();
 function snapshot() {
+  pageScroll[view.page] = window.scrollY;
   return {
     page: view.page, selectedDate: view.date, exerciseId: view.exerciseId, weightDirty: view.weightDirty,
     weightPrefill,
+    pageScroll: { ...pageScroll }, settingsOpen: shell.isOpen(),
     editId: view.editId, taskEditId: view.taskEditId,
     training: training.snapshot(),
     details: Array.from(document.querySelectorAll('details[id]')).filter((d) => d.open).map((d) => d.id),
@@ -326,6 +335,9 @@ try {
     weightPrefill = saved.weightPrefill || null;
     training.restore(saved.training);
     if ($('task-input').value.trim()) $('add-exercise-panel').open = true;
+    for (const name of ['record', 'tasks']) if (Number.isFinite(saved.pageScroll?.[name]) && saved.pageScroll[name] >= 0) pageScroll[name] = saved.pageScroll[name];
+    if (saved.settingsOpen) shell.open();
+    requestAnimationFrame(() => window.scrollTo({ top: pageScroll[view.page], behavior: 'instant' }));
     sessionStorage.removeItem(UPDATE_SNAPSHOT_KEY);
   }
 } catch (error) { showError(new Error(`更新畫面無法還原：${error.message}`)); }
@@ -346,5 +358,5 @@ startUpdateManager({
   },
   snapshot,
   canPrepare: () => !training.dirty() && feedback.canPrepare() && !storageFailed && !view.weightDirty && !$('task-input').value.trim() && !view.taskEditId && !view.editId && !store.read().restTimerRunning && !timer.playing(),
-  freeze: (value) => { frozen = value; $('app-root').inert = value; if (value && $('exercise-picker').open) $('exercise-picker').close(); $('exercise-picker').inert = value; timer.freeze(value); },
+  freeze: (value) => { frozen = value; $('app-root').inert = value; shell.freeze(value); if (value && $('exercise-picker').open) $('exercise-picker').close(); $('exercise-picker').inert = value; timer.freeze(value); },
 });

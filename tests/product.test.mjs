@@ -37,9 +37,33 @@ async function selectExercise(page, id) {
   await page.locator(`#exercise-picker-results [data-exercise-id="${id}"]`).click();
 }
 async function reveal(locator) { await locator.evaluate(e => { for (let p = e.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true; }); }
+async function openSettings(page) { if (!(await page.locator('#settings-panel').evaluate(e => e.open))) await page.click('#open-settings'); }
+async function changeTheme(page, mode) { await openSettings(page); await page.selectOption('#theme-select', mode); await page.click('#close-settings'); }
 async function date(page, key) { await page.fill('#schedule-date-input', key); }
 async function finish(page, key, weight) { await date(page, key); await page.fill('#entry-weight', String(weight)); await page.click('#complete-button'); }
 try {
+  await scenario('分頁吸附、各頁位置還原、設定集中與回報草稿', async (page) => {
+    await page.setViewportSize({ width: 390, height: 600 }); await page.evaluate(() => document.fonts.ready);
+    await page.locator('#calendar-panel').evaluate(e => e.open = true);
+    await page.locator('#rest-panel').evaluate(e => e.open = true);
+    await page.evaluate(() => scrollTo(0, 210));
+    assert(Math.abs((await page.locator('#app-navigation').boundingBox()).y) < 1);
+    assert((await page.locator('header').boundingBox()).y < 0);
+    const recordY = await page.evaluate(() => scrollY);
+    await page.click('#tasks-tab'); assert.equal(await page.evaluate(() => scrollY), 0);
+    await page.locator('#task-list details').evaluateAll(elements => elements.forEach(e => e.open = true));
+    await page.locator('#add-exercise-panel').evaluate(e => e.open = true);
+    await page.evaluate(() => scrollTo(0, 160)); const taskY = await page.evaluate(() => scrollY);
+    await page.click('#record-tab'); assert(Math.abs(await page.evaluate(() => scrollY) - recordY) < 1);
+    await page.click('#tasks-tab'); assert(Math.abs(await page.evaluate(() => scrollY) - taskY) < 1);
+    await openSettings(page); assert(await page.locator('#theme-select').isVisible());
+    await page.selectOption('#theme-select', 'dark');
+    await page.locator('#feedback-panel > summary').click(); await page.fill('#feedback-title', '設定草稿'); await page.fill('#feedback-body', '關閉設定不應清空');
+    await page.click('#close-settings'); assert(await page.locator('#feedback-panel').isHidden());
+    await openSettings(page); assert.equal(await page.inputValue('#feedback-body'), '關閉設定不應清空');
+    await page.keyboard.press('Escape'); assert(await page.locator('#settings-panel').isHidden());
+    assert.equal(await page.getAttribute('html', 'data-theme'), 'dark');
+  });
   await scenario('單筆 kg/lb 輸入、切換不改數字、混合最高與原單位更正', async (page) => {
     await date(page, '2026-10-18'); await page.fill('#entry-weight', '20'); await page.selectOption('#entry-unit', 'lb');
     assert.equal(await page.inputValue('#entry-weight'), '20'); await page.click('#complete-button');
@@ -151,19 +175,19 @@ try {
       await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
         body: JSON.stringify({ ok: true, id: mode === 'wrong-id' ? 'wrong' : payload.id }) });
     });
-    await page.locator('#feedback-panel summary').click();
+    await openSettings(page); await page.locator('#feedback-panel summary').click();
     await page.click('#feedback-send'); assert.equal(requests.length, 0);
     await page.fill('#feedback-title', '測試主旨'); await page.fill('#feedback-body', '測試問題內容');
     await context.setOffline(true); await page.click('#feedback-send');
     assert((await page.locator('#feedback-status').textContent()).includes('離線')); assert.equal(requests.length, 0);
     await context.setOffline(false); await page.reload();
-    await page.locator('#feedback-panel summary').click();
+    await openSettings(page); await page.locator('#feedback-panel summary').click();
     assert.equal(await page.inputValue('#feedback-body'), '測試問題內容');
     await page.click('#feedback-send');
     await page.waitForFunction(() => document.getElementById('feedback-status').textContent.includes('尚無法確認'));
     assert.equal(await page.inputValue('#feedback-body'), '測試問題內容');
     const id = requests[0].id;
-    await page.reload(); await page.locator('#feedback-panel summary').click();
+    await page.reload(); await openSettings(page); await page.locator('#feedback-panel summary').click();
     mode = 'wrong-id'; await page.click('#feedback-send');
     await page.waitForFunction(() => document.getElementById('feedback-status').textContent.includes('尚無法確認'));
     assert.equal(requests[1].id, id); assert.equal(await page.inputValue('#feedback-title'), '測試主旨');
@@ -180,11 +204,11 @@ try {
     const before = await stored(page);
     await page.emulateMedia({ colorScheme: 'dark' }); await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
     assert.equal(await page.getAttribute('html', 'data-theme'), 'dark');
-    await page.selectOption('#theme-select', 'light');
+    await changeTheme(page, 'light');
     await page.reload(); await page.evaluate(() => document.fonts.ready);
     assert.equal(await page.getAttribute('html', 'data-theme'), 'light');
     for (const mode of ['light', 'dark']) {
-      await page.selectOption('#theme-select', mode);
+      await changeTheme(page, mode);
       for (const width of [320, 390, 768]) {
         await page.setViewportSize({ width, height: 844 });
         assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -195,7 +219,7 @@ try {
       assert(await page.locator('#add-exercise-panel summary').isVisible());
       await page.click('#record-tab');
     }
-    await page.selectOption('#theme-select', 'system');
+    await changeTheme(page, 'system');
     await page.emulateMedia({ colorScheme: 'light' }); await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
     assert.equal(await page.getAttribute('html', 'data-theme'), 'light');
     await page.emulateMedia({ colorScheme: 'dark' }); await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');

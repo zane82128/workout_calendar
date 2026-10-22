@@ -33,9 +33,13 @@ async function install(ctx, output = A.output) {
   return page;
 }
 async function ready(page) {
+  await openSettings(page);
   await page.locator('#update-panel').evaluate((e) => e.open = true);
   await page.locator('#check-update').click();
   await page.waitForFunction(() => !document.getElementById('apply-update').hidden, null, { timeout: 20000 });
+}
+async function openSettings(page) {
+  if (await page.locator('#settings-panel').count() && !(await page.locator('#settings-panel').evaluate(e => e.open))) await page.click('#open-settings');
 }
 async function version(page, id) {
   await page.waitForFunction((expected) => document.getElementById('app-version')?.textContent.includes(expected), id);
@@ -53,6 +57,7 @@ try {
     const page = await install(ctx, B.output);
     await version(page, candidate.releaseId);
     assert(await page.locator('#apply-update').isHidden());
+    await openSettings(page);
     await page.locator('.app-update').scrollIntoViewIfNeeded();
     await page.screenshot({ path: path.join(testRoot, 'update-desktop.png') });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -63,6 +68,7 @@ try {
     await ctx.setOffline(true);
     await page.reload();
     await version(page, candidate.releaseId);
+    await openSettings(page);
     await page.locator('#update-panel').evaluate((e) => e.open = true);
   await page.locator('#check-update').click();
     await page.waitForFunction(() => document.getElementById('update-status').textContent.includes('離線'));
@@ -78,9 +84,10 @@ try {
     await page.click('#complete-button');
     await page.fill('#entry-weight', '77.5');
     await page.selectOption('#entry-unit', 'lb');
-    await page.locator('#feedback-panel').evaluate((e) => e.open = true);
+    await openSettings(page); await page.locator('#feedback-panel').evaluate((e) => e.open = true);
     await page.fill('#feedback-title', '尚未送出的問題');
     await page.fill('#feedback-body', '更新後應保留這段回報草稿');
+    await page.click('#close-settings');
     await page.click('#tasks-tab'); await page.click('#manage-sets');
     await page.fill('#set-name', '升級保留的組合');
     await page.locator('#set-choices-panel').evaluate(e => e.open = true);
@@ -95,6 +102,9 @@ try {
     const before = await page.evaluate(() => JSON.parse(localStorage.getItem('workoutCalendar.v1')));
     serving = B.output;
     await ready(page);
+    await page.click('#close-settings');
+    assert(await page.locator('#update-shortcut').isVisible());
+    await page.click('#update-shortcut');
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: path.join(testRoot, 'update-ready-mobile.png') });
     await page.click('#defer-update');
@@ -130,7 +140,7 @@ try {
     const page = await install(ctx);
     serving = B.output;
     missingFile = 'icons/calendar-icon.svg';
-    await page.locator('#update-panel').evaluate((e) => e.open = true);
+    await openSettings(page); await page.locator('#update-panel').evaluate((e) => e.open = true);
     await page.click('#check-update');
     await page.waitForFunction(() => document.getElementById('update-status').textContent.includes('失敗'), null, { timeout: 20000 });
     assert(await page.locator('#apply-update').isHidden());
@@ -186,6 +196,7 @@ try {
     let requests = 0;
     page.on('request', (request) => { if (request.url().endsWith('version.json')) requests++; });
     await page.evaluate(() => { window.dispatchEvent(new Event('online')); document.dispatchEvent(new Event('visibilitychange')); });
+    await openSettings(page);
     await page.locator('#update-panel').evaluate((e) => e.open = true);
     await page.click('#check-update');
     await page.waitForFunction(() => !document.getElementById('check-update').disabled);

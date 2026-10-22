@@ -10,11 +10,14 @@
   </head>
   <body>
     <div class="app" id="app-root">
-      <header><div class="brand"><span class="pixel-emblem" aria-hidden="true"></span><h1>Workout Calendar</h1><span class="pixel-barbell" aria-hidden="true"></span></div><div class="appearance"><label for="theme-select">外觀</label><select id="theme-select"><option value="system">跟隨系統</option><option value="light">淺色</option><option value="dark">深色</option></select><span id="theme-status" role="status" hidden></span></div></header>
+      <header><div class="brand"><span class="pixel-emblem" aria-hidden="true"></span><h1>Workout Calendar</h1><span class="pixel-barbell" aria-hidden="true"></span></div><button id="open-settings" type="button" aria-haspopup="dialog">設定</button></header>
+      <div id="app-navigation">
       <nav role="tablist" aria-label="主要功能">
         <button type="button" id="record-tab" role="tab" data-page="record" aria-selected="true" aria-controls="record-page">紀錄</button>
         <button type="button" id="tasks-tab" role="tab" data-page="tasks" aria-selected="false" aria-controls="tasks-page">動作管理</button>
       </nav>
+      <button id="update-shortcut" type="button" hidden>新版本已準備好 · 查看</button>
+      </div>
       <div id="app-error" role="alert" hidden><span id="error-text"></span><button type="button" id="retry-storage">重試讀取</button></div>
       <main>
         <section id="record-page" role="tabpanel" aria-labelledby="record-tab">
@@ -53,7 +56,13 @@
           </div>
           <section id="set-management" hidden><h2>訓練組合</h2><form id="set-form" novalidate><label for="set-name">組合名稱</label><input id="set-name" maxlength="40" placeholder="例如：推日" required><details id="set-choices-panel"><summary>選擇動作</summary><div id="set-choices"></div></details><p class="muted">依勾選順序加入，可上移調整。</p><div id="set-order"></div><div class="row actions"><button id="set-save" class="primary" type="submit">儲存組合</button><button id="set-cancel" type="button">取消編輯</button></div><p id="set-status" role="status"></p></form><div id="set-list" class="section"></div></section>
         </section>
-        <details class="section" id="feedback-panel">
+      </main>
+    </div>
+    <dialog id="settings-panel" aria-labelledby="settings-title">
+      <div class="row settings-heading"><h2 id="settings-title">設定</h2><button id="close-settings" type="button">關閉</button></div>
+      <section class="settings-appearance"><label for="theme-select">外觀</label><select id="theme-select"><option value="system">跟隨系統</option><option value="light">淺色</option><option value="dark">深色</option></select><span id="theme-status" role="status" hidden></span></section>
+      <section class="app-update" aria-label="版本與更新"><details id="update-panel"><summary>版本與更新</summary><span id="app-version"></span><button type="button" id="check-update">檢查更新</button><p id="update-status" role="status" aria-live="polite"></p><p id="update-note" hidden>更新會保留輸入與計時。</p><button type="button" id="apply-update" hidden>立即更新</button><button type="button" id="defer-update" hidden>稍後</button></details></section>
+      <details class="section" id="feedback-panel">
           <summary>回報問題</summary>
           <form id="feedback-form" novalidate>
             <label for="feedback-title">主旨</label><input id="feedback-title" maxlength="80" required autocomplete="off" placeholder="最多 80 字">
@@ -62,9 +71,7 @@
             <p id="feedback-status" role="status" aria-live="polite"></p>
           </form>
         </details>
-      </main>
-    </div>
-    <footer class="app-update" aria-label="版本與更新"><details id="update-panel"><summary>版本與更新</summary><span id="app-version"></span><button type="button" id="check-update">檢查更新</button><p id="update-status" role="status" aria-live="polite"></p><p id="update-note" hidden>更新會保留輸入與計時。</p><button type="button" id="apply-update" hidden>立即更新</button><button type="button" id="defer-update" hidden>稍後</button></details></footer>
+    </dialog>
     <div id="completion-toast" class="toast" role="status" aria-live="polite" hidden></div>
     <dialog id="exercise-picker" aria-labelledby="exercise-picker-title">
       <div class="row"><h2 id="exercise-picker-title">選擇動作</h2><button id="close-exercise-picker" type="button">關閉</button></div>

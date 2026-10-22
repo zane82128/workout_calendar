@@ -3,7 +3,7 @@
   "commonElements": [
     { "label": "App > Navigation > Record Tab", "selector": "#record-tab" },
     { "label": "App > Navigation > Tasks Tab", "selector": "#tasks-tab" },
-    { "label": "App > Updates > Panel", "selector": "#update-panel" }
+    { "label": "App > Settings > Open", "selector": "#open-settings" }
   ],
   "pages": [
     {
