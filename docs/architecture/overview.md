@@ -1,5 +1,11 @@
 # 系統與資料的白話說明
 
+## 混合版介面（2026-10-23）
+
+index.html 將目前動作提升為記錄卡標題，main.js 以安全 textContent 建立分類／名稱 span；移除 current-weight DOM 與寫入，原 comparison 的資料計算不變。完成區增加紀錄筆數；休息 summary 的標籤及剩餘時間分開更新，圖示不被 textContent 覆寫。原表單 ID、更新草稿與計時儲存維持不變。
+
+新增 `src/icons/ui.svg` 為手寫像素 SVG symbol，槓鈴／日曆／計時／加號共用本機資源；建置沿用 icons 複製、雜湊及預快取。產物檢查將 SVG fragment 與資源路徑分開核對，並檢查 symbol ID 存在。styles.css 的 Hybrid 區塊處理兩主題卡片、字級與窄螢幕，使用既有 Fusion Pixel 字型，無新增字體下載服務。ui-map 設定同步移除已退休欄位。
+
 ## 有氧資料（2026-10-22）
 
 `cardio.js` 管理分鐘／次數的驗證、完成與比較。原儲存物件新增可選 `cardioEntries`（id、exerciseId、名稱／分類快照、dateKey、value、unit、時間戳）；unit 為 minutes 或 reps。以動作、日期、單位去重，與 completedEntries 的 kg 分開，避免舊 App 將時間誤當重量。schema/dataVersion 仍為 2，已知舊 v2 會保留未知欄位但不呈現有氧；回退舊版會暫時看不到新有氧紀錄。

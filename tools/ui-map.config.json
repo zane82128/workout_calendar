@@ -14,7 +14,6 @@
         { "label": "Record > Selected Exercise", "selector": "#selected-exercise" },
         { "label": "Record > Comparison > Previous Weight", "selector": "#last-weight" },
         { "label": "Record > Comparison > Highest Weight", "selector": "#highest-weight" },
-        { "label": "Record > Comparison > Current Day Weight", "selector": "#current-weight" },
         { "label": "Entry Weight Input", "selector": "#entry-weight" },
         { "label": "Record > Entry > Complete Button", "selector": "#complete-button" },
         { "label": "Workout Entry List", "selector": "#completed-list" },

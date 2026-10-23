@@ -117,7 +117,8 @@ function renderOptions(reset = false) {
   $('exercise-select').value = view.exerciseId;
   $('exercise-select').disabled = !exercises.length;
   $('complete-button').disabled = !exercises.length;
-  $('selected-exercise').textContent = data.exercises.find(e => e.id === view.exerciseId) ? exerciseLabel(data.exercises.find(e => e.id === view.exerciseId)) : '請先新增或恢復動作';
+  const selected = data.exercises.find(e => e.id === view.exerciseId);
+  $('selected-exercise').replaceChildren(...(selected ? [node('span', `${selected.category || DEFAULT_EXERCISE_CATEGORY} · `, 'exercise-category'), node('span', selected.name, 'exercise-name')] : [node('span', '請先新增或恢復動作')]));
   $('open-exercise-picker').disabled = !exercises.length;
   if ($('exercise-picker').open) renderPicker();
   renderComparison(reset);
@@ -133,7 +134,6 @@ function renderComparison(reset = false) {
   $('highest-weight').textContent = display(result.highest);
   $('last-weight').classList.toggle('empty-value', result.previous === null);
   $('highest-weight').classList.toggle('empty-value', result.highest === null);
-  $('current-weight').textContent = `當天${cardio ? (entryUnit() === 'minutes' ? '最長' : '最多') : '最高'}：${result.current ? display(valueOf(result.current)) : '—'}`;
   if (reset) {
     $('entry-weight').value = result.previous ? (cardio ? String(result.previous.value) : inputNumber(result.previous.weight, entryUnit())) : '';
     weightPrefill = result.previous && !cardio ? { kg: result.previous.weight, text: $('entry-weight').value, unit: entryUnit() } : null;
@@ -167,6 +167,7 @@ function selectDate(key) {
 function renderRecords() {
   const list = $('completed-list'); list.replaceChildren();
   const records = allRecords(data).filter((r) => r.dateKey === view.date);
+  $('completed-count').textContent = records.length ? `（${records.length}）` : '';
   if (!records.length) list.append(node('p', '尚無紀錄', 'muted'));
   for (const r of records) {
     const row = node('article', undefined, 'record-item'); row.dataset.id = r.id;
@@ -264,7 +265,8 @@ function setPage(page) {
 function refresh() { renderCalendar(); renderOptions(); renderRecords(); renderTasks(); training?.render(); }
 function renderTimer(latest, alarmPlaying, highlighted) {
   $('rest-panel').classList.toggle('rest-finished', Boolean(highlighted));
-  $('rest-panel').querySelector('summary').textContent = highlighted ? '休息結束' : '休息倒數';
+  $('rest-summary-label').textContent = highlighted ? '休息結束' : '休息倒數';
+  $('rest-summary-time').textContent = timerLabel(remaining(latest));
   const config = restConfig(latest);
   $('rest-timer-display').textContent = timerLabel(remaining(latest));
   for (const [id, value] of [['rest-timer-minutes', config.minutes], ['rest-timer-seconds', config.seconds]]) {

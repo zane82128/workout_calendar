@@ -31,7 +31,13 @@ export async function checkRelease(output = path.join(root, 'dist')) {
   for (const [, reference] of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
     if (/^(https?:|#|data:)/.test(reference)) continue;
     assert(!reference.includes('?'), '資源應使用雜湊檔名');
-    assert(resources.includes(reference.replace(/^\.\//, '')), `引用未納入快取：${reference}`);
+    const resourcePath = reference.split('#')[0].replace(/^\.\//, '');
+    assert(resources.includes(resourcePath), `引用未納入快取：${reference}`);
+    if (reference.includes('#') && resourcePath.endsWith('.svg')) {
+      const symbol = reference.slice(reference.indexOf('#') + 1);
+      const svg = await readFile(path.join(appDir, resourcePath), 'utf8');
+      assert(svg.includes(`id="${symbol}"`), `找不到 SVG 圖示：${reference}`);
+    }
   }
   assert(resources.some((r) => /^assets\/main-[\w-]+\.js$/.test(r)));
   assert(resources.some((r) => /^assets\/styles-[\w-]+\.css$/.test(r)));

@@ -159,7 +159,7 @@ try {
     await page.click('#rest-timer-start'); await page.locator('#rest-panel summary').click();
     await page.clock.fastForward(2000);
     const orange = () => page.locator('#rest-panel').evaluate(e => e.classList.contains('rest-finished'));
-    assert(await orange()); assert.equal(await page.locator('#rest-panel summary').textContent(), '休息結束');
+    assert(await orange()); assert.equal(await page.locator('#rest-summary-label').textContent(), '休息結束');
     await page.clock.fastForward(9999); assert(await orange()); await page.clock.fastForward(1); assert.equal(await orange(), false);
     await page.locator('#rest-panel summary').click(); await page.click('#rest-timer-start'); await page.clock.fastForward(2000); assert(await orange());
     await page.click('#rest-timer-reset'); assert.equal(await orange(), false);
@@ -242,7 +242,8 @@ try {
     await date(page, '2026-10-04'); assert.equal(await page.inputValue('#entry-weight'), '45'); assert.equal(await page.locator('#last-weight').textContent(), '45 kg');
     await finish(page, '2026-10-04', 42.5); await page.fill('#entry-weight', '35'); await page.click('#complete-button');
     assert.equal((await stored(page)).completedEntries.filter((r) => r.dateKey === '2026-10-04').length, 1);
-    assert.equal(await page.locator('#current-weight').textContent(), '當天最高：42.5 kg'); assert.equal(await page.locator('#last-weight').textContent(), '45 kg');
+    assert.equal(await page.locator('#current-weight').count(), 0);
+    assert((await page.locator('#completed-list').textContent()).includes('42.5 kg')); assert.equal(await page.locator('#last-weight').textContent(), '45 kg');
     await date(page, '2026-10-05'); assert.equal(await page.locator('#last-weight').textContent(), '42.5 kg'); assert.equal(await page.locator('#highest-weight').textContent(), '45 kg');
     await date(page, '2026-10-02'); assert.equal(await page.locator('#last-weight').textContent(), '40 kg');
     await page.reload(); assert.equal((await stored(page)).completedEntries.length, 3);

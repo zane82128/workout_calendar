@@ -12,7 +12,7 @@
   </head>
   <body>
     <div class="app" id="app-root">
-      <header><div class="brand"><span class="pixel-emblem" aria-hidden="true"></span><h1>Workout Calendar</h1><span class="pixel-barbell" aria-hidden="true"></span></div><button id="open-settings" type="button" aria-haspopup="dialog">設定</button></header>
+      <header><div class="brand"><svg class="ui-icon brand-icon" aria-hidden="true"><use href="icons/ui.svg#barbell"/></svg><h1>Workout Calendar</h1></div><button id="open-settings" type="button" aria-haspopup="dialog">設定</button></header>
       <div id="app-navigation">
       <nav role="tablist" aria-label="主要功能">
         <button type="button" id="record-tab" role="tab" data-page="record" aria-selected="true" aria-controls="record-page">紀錄</button>
@@ -25,29 +25,28 @@
         <section id="record-page" role="tabpanel" aria-labelledby="record-tab">
           <div class="row date-row"><h2 id="date-title">今天</h2><input id="schedule-date-input" type="date" aria-label="訓練日期" required></div>
           <details id="calendar-panel">
-            <summary>日曆</summary>
+            <summary><svg class="ui-icon" aria-hidden="true"><use href="icons/ui.svg#calendar"/></svg>日曆</summary>
             <div class="row calendar-nav"><button type="button" id="calendar-prev" aria-label="上一週">‹</button><span id="calendar-month"></span><button type="button" id="go-today">今天</button><button type="button" id="calendar-next" aria-label="下一週">›</button></div>
             <div class="weekdays" aria-hidden="true"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
             <div id="calendar-days" class="calendar-days" aria-label="四週日曆"></div>
             <p class="muted legend"><span>● 已完成（橘）</span><span>▰ 舊紀錄（灰）</span></p>
           </details>
-          <section class="section" aria-label="記錄訓練">
-            <div class="row exercise-picker-heading"><h2>動作</h2><button id="open-exercise-picker" type="button" aria-haspopup="dialog">選擇動作</button></div>
-            <p id="selected-exercise" class="selected-exercise"></p>
+          <section class="section recording-card" aria-label="記錄訓練">
+            <div class="row exercise-picker-heading"><h2 id="selected-exercise" class="selected-exercise"></h2><button id="open-exercise-picker" type="button" aria-haspopup="dialog">選擇動作</button></div>
             <select id="exercise-select" aria-label="目前動作" hidden></select><select id="exercise-category-filter" hidden aria-label="舊版分類狀態"></select>
-            <div class="comparison"><div><span class="muted">上次</span><strong id="last-weight">尚無紀錄</strong><span class="muted" id="last-date"></span></div><div><span class="muted" id="highest-label">歷史最高</span><strong id="highest-weight">尚無紀錄</strong><span id="current-weight" class="muted">當天最高：—</span></div></div>
+            <div class="comparison"><div><span class="muted">上次</span><strong id="last-weight">尚無紀錄</strong><span class="muted" id="last-date"></span></div><div><span class="muted" id="highest-label">歷史最高</span><strong id="highest-weight">尚無紀錄</strong></div></div>
             <label for="entry-weight">本次重量</label>
             <form id="complete-form" class="weight-row" novalidate><input id="entry-weight" type="number" min="0" step="any" inputmode="decimal" placeholder="徒手填 0" aria-label="本次實際完成最高重量" required><select id="entry-unit" aria-label="本次重量單位"><option value="kg">kg</option><option value="lb">lb</option></select><button type="submit" class="primary" id="complete-button">完成</button></form>
             <p id="entry-error" role="alert" class="error" hidden></p>
           </section>
-          <details class="section" id="daily-set-panel"><summary>加入訓練組合</summary><p id="daily-set-hint" class="muted">先到動作管理 → 訓練組合建立組合。</p><form id="daily-set-form" class="row"><select id="daily-set-select" class="grow" aria-label="訓練組合"></select><button id="daily-set-add" type="submit">加入今天</button></form><p class="muted">只加入待做清單，逐項完成才算紀錄。</p><p id="daily-set-status" role="status"></p></details>
           <section class="section" id="pending-section" hidden><h2>待做</h2><div id="pending-list"></div></section>
-          <section class="section" aria-label="所選日期紀錄"><h2>已完成</h2><div id="completed-list"></div></section>
+          <section class="section completed-card" aria-label="所選日期紀錄"><h2>已完成 <span id="completed-count" class="muted"></span></h2><div id="completed-list"></div></section>
           <section class="section" id="legacy-section" hidden><h2>舊版紀錄 · 只供查閱</h2><div id="legacy-list"></div><p class="muted">不納入上次與歷史最高比較</p></section>
-          <details class="section" id="rest-panel"><summary>休息倒數</summary>
+          <details class="section" id="rest-panel"><summary><svg class="ui-icon" aria-hidden="true"><use href="icons/ui.svg#timer"/></svg><span id="rest-summary-label">休息倒數</span><span id="rest-summary-time" aria-hidden="true">01:30</span></summary>
             <div class="timer-settings"><label for="rest-timer-minutes">分<input id="rest-timer-minutes" type="number" min="0" max="99" step="1" value="1"></label><label for="rest-timer-seconds">秒<input id="rest-timer-seconds" type="number" min="0" max="59" step="1" value="30"></label><output id="rest-timer-display" aria-label="休息剩餘時間">01:30</output></div>
             <div class="row actions"><button type="button" id="rest-timer-start">開始</button><button type="button" id="rest-timer-pause" disabled>暫停</button><button type="button" id="rest-timer-reset">重置</button></div>
           </details>
+          <details class="section" id="daily-set-panel"><summary><svg class="ui-icon" aria-hidden="true"><use href="icons/ui.svg#plus"/></svg>加入訓練組合</summary><p id="daily-set-hint" class="muted">先到動作管理 → 訓練組合建立組合。</p><form id="daily-set-form" class="row"><select id="daily-set-select" class="grow" aria-label="訓練組合"></select><button id="daily-set-add" type="submit">加入今天</button></form><p class="muted">只加入待做清單，逐項完成才算紀錄。</p><p id="daily-set-status" role="status"></p></details>
         </section>
         <section id="tasks-page" role="tabpanel" aria-labelledby="tasks-tab" hidden>
           <div class="row management-switch"><button id="manage-exercises" type="button" aria-pressed="true">動作清單</button><button id="manage-sets" type="button" aria-pressed="false">訓練組合</button></div>
