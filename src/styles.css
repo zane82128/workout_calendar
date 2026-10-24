@@ -300,3 +300,28 @@ main { padding:12px 12px 24px; }
   .exercise-name { font-size:22px; }
   #open-exercise-picker { font-size:13px; padding:6px; }
 }
+/* A single month calendar with two scroll-snap wheels. */
+.calendar-nav #calendar-month { flex:1; min-width:0; padding-inline:4px; }
+.month-wheels { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:12px 8px; }
+.month-wheels p { margin:0 0 8px; text-align:center; color:var(--muted); }
+.date-wheel { height:222px; overflow-y:auto; overscroll-behavior:contain; scroll-snap-type:y mandatory; padding-block:88px; scrollbar-width:none; border-block:1px solid var(--line); background:linear-gradient(to bottom,transparent 88px,var(--card-secondary) 88px,var(--card-secondary) 132px,transparent 132px); }
+.date-wheel::-webkit-scrollbar { display:none; }
+.date-wheel button { display:block; width:100%; height:44px; min-height:44px; margin:0; padding:0; border:0; box-shadow:none; background:transparent; scroll-snap-align:center; scroll-margin:0; color:var(--muted); }
+.date-wheel button[aria-selected='true'] { color:var(--text); outline:2px solid var(--gold); outline-offset:-2px; }
+.month-picker-actions { justify-content:space-between; padding:8px; }
+#calendar-month-picker[hidden],#calendar-date-grid[hidden] { display:none; }
+
+/* A date plaque, kept visually lighter and shorter than the calendar button. */
+.date-row #date-title { position:relative; display:inline-flex; align-items:center; min-height:36px; margin:0; padding:4px 12px 4px 19px; border:1px solid var(--gold); background:var(--card-secondary); box-shadow:2px 2px 0 var(--edge); font-size:18px; line-height:1.2; font-weight:400; font-variant-numeric:tabular-nums; }
+.date-row #date-title::before { content:''; position:absolute; left:7px; top:8px; bottom:8px; width:3px; background:var(--gold); }
+
+header .brand { gap:10px; }
+header h1 { font-size:22px; }
+header .brand-icon { width:40px; height:40px; }
+#open-settings { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; min-width:44px; padding:8px; }
+#open-settings .ui-icon { width:26px; height:26px; }
+@media(max-width:360px) {
+  header .brand { gap:8px; }
+  header h1 { font-size:20px; }
+  header .brand-icon { width:36px; height:36px; }
+}

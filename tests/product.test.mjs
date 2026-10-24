@@ -39,9 +39,66 @@ async function selectExercise(page, id) {
 async function reveal(locator) { await locator.evaluate(e => { for (let p = e.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true; }); }
 async function openSettings(page) { if (!(await page.locator('#settings-panel').evaluate(e => e.open))) await page.click('#open-settings'); }
 async function changeTheme(page, mode) { await openSettings(page); await page.selectOption('#theme-select', mode); await page.click('#close-settings'); }
-async function date(page, key) { await page.fill('#schedule-date-input', key); }
+async function date(page, key) { await page.locator('#schedule-date-input').evaluate((el, value) => { el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); }, key); }
 async function finish(page, key, weight) { await date(page, key); await page.fill('#entry-weight', String(weight)); await page.click('#complete-button'); }
 try {
+  await scenario('滑輪捲動不被程式強制拉回、年月連續操作與日期標籤', async page => {
+    await page.setViewportSize({ width: 390, height: 740 });
+    await page.locator('#calendar-panel > summary').click();
+    await page.click('#calendar-month');
+    for (const id of ['calendar-year-wheel', 'calendar-month-wheel']) {
+      const wheel = page.locator(`#${id}`);
+      await wheel.evaluate(el => {
+        el.dataset.forcedScrolls = '0';
+        const original = el.scrollTo.bind(el);
+        el.scrollTo = (...args) => { el.dataset.forcedScrolls = String(Number(el.dataset.forcedScrolls) + 1); original(...args); };
+      });
+      const box = await wheel.boundingBox();
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.wheel(0, -80);
+      await page.waitForTimeout(350);
+      await page.mouse.wheel(0, 130);
+      await page.waitForTimeout(600);
+      assert.equal(await wheel.getAttribute('data-forced-scrolls'), '0', '使用者捲動不應觸發程式 scrollTo，避免中斷觸控／慣性');
+      const offset = await wheel.evaluate(el => el.scrollTop);
+      assert(Math.abs(offset / 44 - Math.round(offset / 44)) < 0.05, '瀏覽器應自行吸附到日期格');
+      assert.equal(await wheel.locator('[aria-selected="true"]').count(), 1);
+    }
+    await page.click('#calendar-month-cancel');
+    assert.equal(await page.textContent('#date-title'), '10/20');
+    await date(page, '2026-09-15');
+    assert.equal(await page.textContent('#date-title'), '09/15');
+    await page.click('#go-today');
+    assert.equal(await page.textContent('#date-title'), '10/20');
+  });
+  await scenario('年月滑輪確認、取消與月份瀏覽', async page => {
+    await page.setViewportSize({ width: 320, height: 740 });
+    assert(await page.locator('#schedule-date-input').isHidden());
+    await page.locator('#calendar-panel > summary').click();
+    await page.click('#calendar-month');
+    assert(await page.locator('#calendar-date-grid').isHidden());
+    await page.locator('#calendar-year-wheel').focus();
+    await page.keyboard.press('ArrowUp');
+    await page.click('#calendar-month-cancel');
+    assert.match(await page.textContent('#calendar-month'), /2026 \/ 10/);
+    await page.click('#calendar-month');
+    await page.locator('#calendar-year-wheel').evaluate(el => { el.scrollTop = (2025 - 1900) * 44; });
+    await page.locator('#calendar-month-wheel').evaluate(el => { el.scrollTop = 8 * 44; });
+    await page.waitForTimeout(300);
+    await page.click('#calendar-month-confirm');
+    assert.match(await page.textContent('#calendar-month'), /2025 \/ 09/);
+    assert.equal(await page.inputValue('#schedule-date-input'), '2026-10-20');
+    await page.click('[data-date="2025-09-15"]');
+    assert.equal(await page.inputValue('#schedule-date-input'), '2025-09-15');
+    await page.click('#calendar-next');
+    assert.match(await page.textContent('#calendar-month'), /2025 \/ 10/);
+    assert.equal(await page.inputValue('#schedule-date-input'), '2025-09-15');
+    await page.click('#go-today');
+    assert(await page.locator('[data-date="2026-10-21"]').isDisabled());
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.click('#calendar-month');
+    await page.screenshot({ path: path.join(folder, 'calendar-wheels-mobile.png'), fullPage: true });
+  });
   await scenario('分頁吸附、各頁位置還原、設定集中與回報草稿', async (page) => {
     await page.setViewportSize({ width: 390, height: 600 }); await page.evaluate(() => document.fonts.ready);
     await page.locator('#calendar-panel').evaluate(e => e.open = true);
@@ -335,7 +392,7 @@ try {
     assert.equal(await page.locator('#highest-weight').textContent(),'3 分鐘');
     await page.reload(); await selectExercise(page,'run');
     assert.equal(await page.locator('#highest-weight').textContent(),'3 分鐘');
-    await page.fill('#schedule-date-input','2026-10-19'); await page.locator('#schedule-date-input').dispatchEvent('change');
+    await page.locator('#schedule-date-input').evaluate((el, value) => { el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); }, '2026-10-19'); await page.locator('#schedule-date-input').dispatchEvent('change');
     await page.fill('#entry-weight','20'); await page.click('#complete-button');
     await reveal(page.locator('#go-today')); await page.click('#go-today');
     assert.equal(await page.locator('#last-weight').textContent(),'20 分鐘');

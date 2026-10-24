@@ -78,7 +78,7 @@ try {
   await test('A → B、稍後、輸入與日期／計時保留、無重整迴圈', async () => {
     const ctx = await context();
     const page = await install(ctx);
-    await page.fill('#schedule-date-input', '2026-10-01');
+    await page.locator('#schedule-date-input').evaluate((el, value) => { el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); }, '2026-10-01');
     await page.locator('#schedule-date-input').dispatchEvent('change');
     await page.fill('#entry-weight', '42.5');
     await page.click('#complete-button');
@@ -97,7 +97,7 @@ try {
     await page.locator('#set-choices input').first().check();
     await page.click('#record-tab');
     await page.locator('#daily-set-panel').evaluate(e => e.open = true); await page.click('#daily-set-add');
-    await page.fill('#schedule-date-input', '2026-10-01');
+    await page.locator('#schedule-date-input').evaluate((el, value) => { el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); }, '2026-10-01');
     await page.fill('#entry-weight', '77.5');
     const before = await page.evaluate(() => JSON.parse(localStorage.getItem('workoutCalendar.v1')));
     serving = B.output;
@@ -283,7 +283,7 @@ try {
     await writeFile(path.join(appDir, 'version.json'), JSON.stringify(info));
     const ctx = await context(), page = await install(ctx, oldDir);
     await page.click('[data-page="schedule"].bottom-nav__item');
-    await page.fill('#schedule-date-input', '2026-10-01');
+    await page.locator('#schedule-date-input').evaluate((el, value) => { el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); }, '2026-10-01');
     await page.fill('#record-settings-memo', '隱藏功能資料保留');
     await page.click('#schedule-form button[type="submit"]');
     await page.fill('[data-field="weight"]', '100');

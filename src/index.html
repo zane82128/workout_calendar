@@ -12,7 +12,7 @@
   </head>
   <body>
     <div class="app" id="app-root">
-      <header><div class="brand"><svg class="ui-icon brand-icon" aria-hidden="true"><use href="icons/ui.svg#barbell"/></svg><h1>Workout Calendar</h1></div><button id="open-settings" type="button" aria-haspopup="dialog">設定</button></header>
+      <header><div class="brand"><svg class="ui-icon brand-icon" aria-hidden="true"><use href="icons/ui.svg#barbell"/></svg><h1>Workout Calendar</h1></div><button id="open-settings" type="button" aria-label="設定" aria-haspopup="dialog"><svg class="ui-icon" aria-hidden="true"><use href="icons/ui.svg#gear"/></svg></button></header>
       <div id="app-navigation">
       <nav role="tablist" aria-label="主要功能">
         <button type="button" id="record-tab" role="tab" data-page="record" aria-selected="true" aria-controls="record-page">紀錄</button>
@@ -23,12 +23,13 @@
       <div id="app-error" role="alert" hidden><span id="error-text"></span><button type="button" id="retry-storage">重試讀取</button></div>
       <main>
         <section id="record-page" role="tabpanel" aria-labelledby="record-tab">
-          <div class="row date-row"><h2 id="date-title">今天</h2><input id="schedule-date-input" type="date" aria-label="訓練日期" required></div>
+          <div class="row date-row"><h2 id="date-title">今天</h2><input id="schedule-date-input" type="date" aria-label="訓練日期" hidden></div>
           <details id="calendar-panel">
             <summary><svg class="ui-icon" aria-hidden="true"><use href="icons/ui.svg#calendar"/></svg>日曆</summary>
-            <div class="row calendar-nav"><button type="button" id="calendar-prev" aria-label="上一週">‹</button><span id="calendar-month"></span><button type="button" id="go-today">今天</button><button type="button" id="calendar-next" aria-label="下一週">›</button></div>
-            <div class="weekdays" aria-hidden="true"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
-            <div id="calendar-days" class="calendar-days" aria-label="四週日曆"></div>
+            <div class="row calendar-nav"><button type="button" id="calendar-prev" aria-label="上一個月">‹</button><button type="button" id="calendar-month" aria-expanded="false" aria-controls="calendar-month-picker"></button><button type="button" id="go-today">今天</button><button type="button" id="calendar-next" aria-label="下一個月">›</button></div>
+            <section id="calendar-month-picker" hidden aria-label="選擇年月"><div class="month-wheels"><div><p>年份</p><div id="calendar-year-wheel" class="date-wheel" role="listbox" aria-label="年份"></div></div><div><p>月份</p><div id="calendar-month-wheel" class="date-wheel" role="listbox" aria-label="月份"></div></div></div><div class="row month-picker-actions"><button type="button" id="calendar-month-cancel">取消</button><button type="button" id="calendar-month-confirm">確定</button></div></section>
+            <div id="calendar-date-grid"><div class="weekdays" aria-hidden="true"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+            <div id="calendar-days" class="calendar-days" aria-label="月份日曆"></div></div>
             <p class="muted legend"><span>● 已完成（橘）</span><span>▰ 舊紀錄（灰）</span></p>
           </details>
           <section class="section recording-card" aria-label="記錄訓練">

@@ -1,3 +1,4 @@
+import { startMonthPicker } from './month-picker.js';
 import { EXERCISE_CATEGORIES, DEFAULT_EXERCISE_CATEGORY } from './preset-exercises.js';
 import './theme.js';
 import { startFeedback } from './feedback.js';
@@ -7,7 +8,7 @@ import { startTraining } from './training-ui.js';
 import { renderExerciseGroups } from './exercise-groups.js';
 import { displayWeight, inputNumber, recordedUnit, completeInUnit, correctInUnit } from './weight-units.js';
 import { isCardio, cardioUnits, unitLabel, allRecords, cardioText, cardioComparison, completeCardio, correctCardio } from './cardio.js';
-import { dateKey, parseDate, requirePastDate, comparison, validName, fourWeeks } from './records.js';
+import { dateKey, parseDate, requirePastDate, comparison, validName } from './records.js';
 import { createStore, STORAGE_KEY, StorageFailure } from './storage.js';
 import { createRestTimer, remaining, restConfig, timerLabel } from './rest-timer.js';
 import { startUpdateManager, UPDATE_SNAPSHOT_KEY } from './update-manager.js';
@@ -22,6 +23,8 @@ let toastId, timer, frozen = false, storageFailed = false;
 let training;
 const shortDate = (key) => key.replaceAll('-', '/');
 let weightPrefill = null;
+let calendarMonth = view.date.slice(0, 7);
+const monthPicker = startMonthPicker({ getMonth: () => calendarMonth, apply: value => { calendarMonth = value; renderCalendar(); } });
 const entryUnit = () => $('entry-unit').value;
 const currentCardio = () => isCardio(data.exercises.find(e => e.id === view.exerciseId));
 function renderEntryUnits() {
@@ -143,11 +146,17 @@ function renderComparison(reset = false) {
 function renderCalendar() {
   const today = dateKey();
   $('schedule-date-input').max = today; $('schedule-date-input').value = view.date;
-  $('date-title').textContent = view.date === today ? '今天' : shortDate(view.date);
-  $('calendar-month').textContent = view.date.slice(0, 7).replace('-', ' / ');
+  $('date-title').textContent = shortDate(view.date).slice(5);
+  $('date-title').setAttribute('aria-label', `訓練日期 ${shortDate(view.date)}${view.date === today ? '，今天' : ''}`);
+  $('calendar-month').textContent = calendarMonth.replace('-', ' / ') + ' \u25be';
   $('calendar-days').replaceChildren();
   const completed = new Set(allRecords(data).map((r) => r.dateKey)), legacy = new Set(data.entries.map((r) => r?.dateKey));
-  for (const key of fourWeeks(view.date)) {
+  const first = parseDate(calendarMonth + '-01');
+  const start = new Date(first); start.setDate(1 - first.getDay());
+  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
+  const count = Math.ceil((first.getDay() + last.getDate()) / 7) * 7;
+  for (let i = 0; i < count; i++) {
+    const day = new Date(start); day.setDate(start.getDate() + i); const key = dateKey(day);
     const hasNew = completed.has(key), hasOld = legacy.has(key);
     const cell = button(String(Number(key.slice(-2))), () => selectDate(key));
     cell.dataset.date = key;
@@ -160,7 +169,7 @@ function renderCalendar() {
 function selectDate(key) {
   hideToast();
   try { requirePastDate(key); } catch (error) { showError(error, 'entry'); $('schedule-date-input').value = view.date; return; }
-  view.date = key; view.editId = null; view.deleteId = null; $('entry-error').hidden = true;
+  view.date = key; calendarMonth = key.slice(0, 7); view.editId = null; view.deleteId = null; $('entry-error').hidden = true;
   $('daily-set-status').textContent = '';
   renderCalendar(); renderRecords(); renderComparison(true); training?.renderPending();
 }
@@ -290,9 +299,10 @@ document.querySelector('nav').addEventListener('keydown', (event) => {
   event.preventDefault(); const page = event.key === 'Home' ? 'record' : event.key === 'End' ? 'tasks' : view.page === 'record' ? 'tasks' : 'record'; setPage(page); $(`${page}-tab`).focus();
 });
 $('schedule-date-input').onchange = (event) => selectDate(event.target.value);
-$('go-today').onclick = () => selectDate(dateKey());
-for (const [id, offset] of [['calendar-prev', -7], ['calendar-next', 7]]) $(id).onclick = () => {
-  const next = parseDate(view.date); next.setDate(next.getDate() + offset); selectDate(dateKey(next) > dateKey() ? dateKey() : dateKey(next));
+$('go-today').onclick = () => { monthPicker.close(); selectDate(dateKey()); };
+for (const [id, offset] of [['calendar-prev', -1], ['calendar-next', 1]]) $(id).onclick = () => {
+  const next = parseDate(calendarMonth + '-01'); next.setMonth(next.getMonth() + offset);
+  calendarMonth = dateKey(next).slice(0, 7); monthPicker.close(); renderCalendar();
 };
 $('exercise-select').onchange = (event) => chooseExercise(event.target.value);
 $('exercise-search').oninput = () => renderPicker();
@@ -328,7 +338,7 @@ training.render();
 function snapshot() {
   pageScroll[view.page] = window.scrollY;
   return {
-    page: view.page, selectedDate: view.date, exerciseId: view.exerciseId, weightDirty: view.weightDirty,
+    page: view.page, selectedDate: view.date, calendarMonth, exerciseId: view.exerciseId, weightDirty: view.weightDirty,
     weightPrefill,
     pageScroll: { ...pageScroll }, settingsOpen: shell.isOpen(),
     editId: view.editId, taskEditId: view.taskEditId,
@@ -345,6 +355,7 @@ try {
     const storedDate = saved.selectedDate;
     const date = fields.get('schedule-date-input') || (typeof storedDate === 'string' && storedDate.length === 10 ? storedDate : storedDate ? dateKey(new Date(storedDate)) : null);
     if (date) { try { requirePastDate(date); view.date = date; } catch { /* Invalid/future selection: use today. */ } }
+    calendarMonth = /^\d{4}-(0[1-9]|1[0-2])$/.test(saved.calendarMonth || '') ? saved.calendarMonth : view.date.slice(0, 7);
     view.page = saved.page || (saved.activePage === 'tasks' ? 'tasks' : 'record');
     view.exerciseId = saved.exerciseId || fields.get('exercise-select') || '';
     view.editId = saved.editId || null; view.taskEditId = saved.taskEditId || saved.taskDrafts?.[0]?.id || null;

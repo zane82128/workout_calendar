@@ -1,5 +1,17 @@
 # 系統與資料的白話說明
 
+頁首外觀（2026-10-24）：ui.svg 新增 gear symbol，open-settings 沿用原 ID／事件與 dialog，aria-label 保存設定名稱。CSS 放大標題與品牌圖示，窄版另縮放，不改資料或服務。
+
+gear 後續改為八齒描邊與中心圓孔，圖示局部採 geometricPrecision，避免繼承 crispEdges 使細線鋸齒化；其餘圖示仍維持原像素風。
+
+## 年月滑輪（2026-10-24）
+
+日期牌只以 styles.css 的 #date-title 及裝飾偽元素呈現，共用主題 gold/card-secondary/edge；保留 h2 與完整日期輔助標籤，不加入按鈕角色或事件。
+
+month-picker.js 管理暫存年月、確認與取消；兩欄以 CSS scroll-snap 對齊中央選取格，每格 44px，支援觸控、滑鼠及方向鍵。main.js 分開保存瀏覽月份 calendarMonth 與紀錄日期 view.date，依月產生完整週列。schedule-date-input 隱藏保留舊更新快照相容；新快照另存瀏覽月份，滑輪草稿不跨更新保存。無新持久資料、依賴或外部服務。
+
+滑動修正：移除 scroll 事件後 140ms 的程式定位，避免與持續拖動、慣性或 smooth scroll 競爭；scroll 僅被動更新最近格的草稿與 ARIA，且只更新前後兩個選項。滑輪選項覆寫全域 scroll-margin-top 為 0，防止原導航避讓距離改變 CSS snap 中心；容器含邊框 222px，內部恰為五個 44px 格。日期列改顯示 MM/DD，完整日期保留於 aria-label。
+
 ## 混合版介面（2026-10-23）
 
 index.html 將目前動作提升為記錄卡標題，main.js 以安全 textContent 建立分類／名稱 span；移除 current-weight DOM 與寫入，原 comparison 的資料計算不變。完成區增加紀錄筆數；休息 summary 的標籤及剩餘時間分開更新，圖示不被 textContent 覆寫。原表單 ID、更新草稿與計時儲存維持不變。
